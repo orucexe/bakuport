@@ -1,6 +1,7 @@
 import asyncio
 
-from fastapi import WebSocket
+import anyio
+from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
 
@@ -24,15 +25,15 @@ class LiveHub:
             while True:
                 await socket.send_json(await queue.get())
 
-        async def receive():
-            while True:
-                await socket.receive_text()
-
-        tasks = [asyncio.create_task(send()), asyncio.create_task(receive())]
         try:
-            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            async with anyio.create_task_group() as group:
+                group.start_soon(send)
+                try:
+                    while True:
+                        await socket.receive_text()
+                except WebSocketDisconnect:
+                    pass
+                finally:
+                    group.cancel_scope.cancel()
         finally:
             self.clients.discard(queue)
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)

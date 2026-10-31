@@ -1,3 +1,6 @@
+import asyncio
+import logging
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, WebSocket
@@ -5,11 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
 from .config import Settings
-from .db import Base, make_database
+from .db import Base, make_database, utcnow
 from .live import LiveHub
 from .models import Bus, BusPosition, Route, RouteStop, Stop
 from .schemas import GPSInput
 from .seed import seed
+from .routers.analytics import router as analytics_router
+from .services.engine import calculate_tick
+
+log = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -22,13 +29,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Base.metadata.create_all(engine)
         with sessions() as session:
             seed(session)
-        yield
-        engine.dispose()
+        await run_tick()
+        app.state.next_tick = time.monotonic() + 60
+        task = asyncio.create_task(analytics_loop())
+        try:
+            yield
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            engine.dispose()
+
+    async def run_tick():
+        events = await asyncio.to_thread(calculate_tick, sessions, settings, utcnow())
+        for event_type, data in events:
+            await hub.publish(event_type, data)
+
+    async def analytics_loop():
+        while True:
+            await asyncio.sleep(1)
+            if time.monotonic() >= app.state.next_tick:
+                try:
+                    await run_tick()
+                except Exception:
+                    log.exception("Analytics tick failed; retaining previous state")
+                app.state.next_tick = time.monotonic() + 60
 
     app = FastAPI(title="IDDA · Smart Transit Demo", lifespan=lifespan)
     app.state.sessions = sessions
     app.state.settings = settings
     app.state.hub = hub
+    app.state.next_tick = time.monotonic() + 60
+    app.state.run_tick = run_tick
+    app.include_router(analytics_router)
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 

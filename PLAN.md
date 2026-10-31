@@ -16,10 +16,10 @@
 - [x] Verify the thin slice and commit (local API/WS smoke and frontend build).
 
 ## 2. Backend (20-45 min)
-- [ ] Complete REST endpoints and validated ingestion.
-- [ ] Route projection ETA with recent smoothed speed.
-- [ ] Minute density, confidence, persistent alert state and hysteresis.
-- [ ] Surge controls, websocket events; verify and commit.
+- [x] Complete REST endpoints and validated ingestion (forecast follows in AI milestone).
+- [x] Route projection ETA with recent smoothed speed.
+- [x] Minute density, confidence, persistent alert state and hysteresis.
+- [x] Surge controls, websocket events; 22 backend tests passed; commit.
 
 ## 3. Frontend (45-70 min)
 - [ ] Passenger selectors, arrivals and crowd buttons.
