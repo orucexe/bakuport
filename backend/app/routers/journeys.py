@@ -27,7 +27,7 @@ class JourneySearch(BaseModel):
         return self
 
 
-@router.post('/journeys/search', summary='Find direct buses between two coordinates',description='Search up to four nearby AYNA stops per endpoint and twelve common lines. Ordered directional stops prevent reverse-direction matches. Walking distances are straight-line estimates. No transfers; partial coverage is explicit.')
+@router.post('/journeys/search', summary='Plan walking, bus and final walking legs',description='Search up to 24 nearby AYNA stops per endpoint and 32 candidate lines. Validate all directional boarding/alighting pairs within the walking limit; rank by combined walk/ride time. Three explicit legs and the traveled bus segment are returned. Walking geometry is a straight-line estimate. No bus transfers; partial coverage is explicit.')
 async def search(payload:JourneySearch,request:Request) -> dict:
     return await search_journeys(request.app.state.official_routes,request.app.state.sessions,payload.origin.model_dump(),payload.destination.model_dump(),payload.mode,payload.walking_limit_m/1000)
 

@@ -1,6 +1,7 @@
 """Direct bus journeys and GPS estimates on directional, open polylines."""
 import math
 from datetime import datetime, timedelta
+from fastapi import HTTPException
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -41,6 +42,18 @@ def point_at(path: list[dict], progress: float) -> dict:
     return path[-1]
 
 
+def slice_path(path: list[dict], start_km: float, end_km: float) -> list[dict]:
+    """Keep the traveled polyline rather than the whole bus line."""
+    points = [point_at(path, start_km)]
+    progress = 0.0
+    for a, b in zip(path, path[1:]):
+        progress += distance(a, b)
+        if start_km < progress < end_km:
+            points.append(b)
+    points.append(point_at(path, end_km))
+    return points
+
+
 def match_direction(route: dict, direction: dict, origin: dict, destination: dict, walk_km: float) -> dict | None:
     stops, path = direction['stops'], direction['shape']
     board = [(i, distance(origin,s)) for i,s in enumerate(stops) if distance(origin,s) <= walk_km]
@@ -59,11 +72,25 @@ def match_direction(route: dict, direction: dict, origin: dict, destination: dic
     if not candidates:
         return None
     total,start,end,before,after,ride = min(candidates)
+    start_km, _ = locate(stops[start], path)
+    end_km, _ = locate(stops[end], path)
+    ride_shape = slice_path(path, start_km, end_km)
+    before_minutes, after_minutes = before / 4.5 * 60, after / 4.5 * 60
+    legs = [
+        {'type': 'walk', 'from': origin, 'to': stops[start], 'distance_m': round(before * 1000),
+         'minutes': round(before_minutes, 1), 'shape': [origin, stops[start]], 'estimated': True},
+        {'type': 'bus', 'from': stops[start], 'to': stops[end], 'code': route['code'],
+         'distance_m': round((end_km-start_km)*1000), 'minutes': round(ride, 1), 'shape': ride_shape},
+        {'type': 'walk', 'from': stops[end], 'to': destination, 'distance_m': round(after * 1000),
+         'minutes': round(after_minutes, 1), 'shape': [stops[end], destination], 'estimated': True},
+    ]
     return {'key':f"{route['source_id']}:{direction['id']}", 'route_id':route['source_id'], 'code':route['code'],
             'direction_id':direction['id'], 'direction_label':direction['label'], 'carrier':route['carrier'],
             'tariff_label':route['tariff_label'], 'board':stops[start], 'alight':stops[end],
             'stop_count':end-start, 'walk_to_m':round(before*1000), 'walk_from_m':round(after*1000),
-            'ride_minutes':round(ride), 'planned_minutes':math.ceil(total), 'shape':path,
+            'ride_minutes':round(ride, 1), 'walk_to_minutes':round(before_minutes, 1),
+            'walk_from_minutes':round(after_minutes, 1), 'legs':legs,
+            'planned_minutes':math.ceil(total), 'shape':ride_shape,
             'stops':stops, 'stale':route.get('stale',False), 'fetched_at':route.get('fetched_at'),
             'source_url':route.get('source_url'), 'live_available':False}
 
@@ -103,26 +130,48 @@ def demo_routes(sessions: sessionmaker[Session]) -> list[dict]:
 async def search_journeys(service: OfficialRoutes, sessions: sessionmaker[Session], origin: dict,
                           destination: dict, mode: str, walk_km: float) -> dict:
     limited, stale = False, False
+    failed = False
     if mode == 'demo':
         routes = demo_routes(sessions)
     else:
         data=await service.fetch('journey:stops','/api/stop/getAll',normalize_stops)
         stale=data['stale']
-        async def nearby_ids(point: dict) -> set[int]:
-            nonlocal stale, limited
+        async def nearby_ids(point: dict) -> dict[int, float]:
+            nonlocal stale, limited, failed
             nearby=sorted((distance(point,s),s['id']) for s in data['stops'] if distance(point,s)<=walk_km)
-            limited |= len(nearby)>4
-            ids=set()
-            for _, stop_id in nearby[:4]:
-                response=await service.fetch(f'stop-buses:{stop_id}',f'/api/bus/getBusesByStopId?stopId={stop_id}',normalize_stop_buses)
+            limited |= len(nearby)>24
+            ids={}
+            for walk_distance, stop_id in nearby[:24]:
+                try:
+                    response=await service.fetch(f'stop-buses:{stop_id}',f'/api/bus/getBusesByStopId?stopId={stop_id}',normalize_stop_buses)
+                except HTTPException as exc:
+                    if exc.status_code != 503:
+                        raise
+                    failed = True
+                    continue
                 stale |= response['stale']
-                ids.update(response['ids'])
+                for route_id in response['ids']:
+                    ids[route_id] = min(ids.get(route_id, float('inf')), walk_distance)
             return ids
         start_ids=await nearby_ids(origin)
         end_ids=await nearby_ids(destination)
-        ids=sorted(start_ids & end_ids)
-        limited |= len(ids)>12
-        routes=[await service.route(source_id) for source_id in ids[:12]]
+        # Membership is candidate discovery only. Validate actual walking access
+        # against every ordered stop of each candidate's directional geometry.
+        # Union preserves lines omitted by a nearby-stop membership response.
+        ids=sorted(start_ids.keys() | end_ids.keys(), key=lambda route_id: (
+            route_id not in start_ids or route_id not in end_ids,
+            start_ids.get(route_id, walk_km)+end_ids.get(route_id, walk_km), route_id))
+        limited |= len(ids)>32
+        routes=[]
+        for source_id in ids[:32]:
+            try:
+                routes.append(await service.route(source_id))
+            except HTTPException as exc:
+                if exc.status_code not in (404, 503):
+                    raise
+                failed = True
+        if failed and not routes:
+            raise HTTPException(503, 'Stop or route information unavailable; retry the search')
     matches=[]
     for route in routes:
         for direction in route['directions']:
@@ -130,9 +179,11 @@ async def search_journeys(service: OfficialRoutes, sessions: sessionmaker[Sessio
             if match:
                 match['mode']=mode
                 matches.append(match)
-    return {'journeys':sorted(matches,key=lambda j:j['planned_minutes'])[:12], 'mode':mode,
-            'partial':limited,'stale':stale or any(r.get('stale',False) for r in routes),
-            'walking_limit_m':round(walk_km*1000), 'direct_only':True}
+    ranked=sorted(matches,key=lambda j:(j['planned_minutes'],j['walk_to_m']+j['walk_from_m']))
+    return {'journeys':ranked[:12], 'mode':mode,
+            'partial':limited or failed or len(ranked)>12,'stale':stale or any(r.get('stale',False) for r in routes),
+            'walking_limit_m':round(walk_km*1000), 'direct_only':True,
+            'strategy':'walk_bus_walk', 'walking_geometry':'straight_line_estimate'}
 
 
 def gps_estimates(sessions: sessionmaker[Session], route_id: int, direction_id: int, direction: dict,

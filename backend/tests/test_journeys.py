@@ -1,8 +1,10 @@
 from datetime import timedelta
+import asyncio
+from fastapi import HTTPException
 
 from app.db import utcnow
 from app.models import BusPosition, VehicleGPS
-from app.services.journeys import gps_estimates, locate, match_direction, point_at, normalize_stops
+from app.services.journeys import gps_estimates, locate, match_direction, point_at, normalize_stops, search_journeys
 
 
 def fixture_route():
@@ -83,3 +85,56 @@ def test_external_gps_ingestion_and_arrivals_are_isolated_from_demo(client):
     assert client.post('/vehicles/gps',json={**payload,'speed_kmh':-1}).status_code==422
     assert client.post('/vehicles/gps',json={**payload,'direction_id':999}).status_code==422
     assert client.get('/journeys/vehicles',params={'route_id':1,'direction_id':1,'board':8,'alight':3}).status_code==422
+
+
+def test_walk_bus_walk_off_stop_endpoints_and_traveled_segment():
+    route,direction=fixture_route()
+    origin={**direction['stops'][1],'lat':40.401}
+    destination={**direction['stops'][3],'lat':40.402}
+    result=match_direction(route,direction,origin,destination,0.3)
+    assert result is not None
+    assert [leg['type'] for leg in result['legs']]==['walk','bus','walk']
+    assert result['walk_to_m']>100 and result['walk_from_m']>200
+    assert result['walk_to_minutes']>1 and result['walk_from_minutes']>2
+    assert result['shape'][0]['lng']==direction['stops'][1]['lng']
+    assert result['shape'][-1]['lng']==direction['stops'][3]['lng']
+    assert result['planned_minutes']>=sum(leg['minutes'] for leg in result['legs'])-0.1
+    assert match_direction(route,direction,origin,destination,0.05) is None
+
+
+def test_farther_boarding_stop_and_incomplete_membership_do_not_hide_bus():
+    route,direction=fixture_route()
+    route={**route,'directions':[direction]}
+    origin={**direction['stops'][1],'lat':40.401}
+    destination={**direction['stops'][3],'lat':40.401}
+    # Eight closer stops serve no bus. The ninth stop supplies the usable line.
+    stops=[{'id':i,'lat':origin['lat']+0.00001*i,'lng':origin['lng']} for i in range(1,9)]
+    stops.append({'id':9,**{k:direction['stops'][1][k] for k in ('lat','lng')}})
+    stops.append({'id':10,**{k:destination[k] for k in ('lat','lng')}})
+    class Source:
+        async def fetch(self,key,path,normalize):
+            if key=='journey:stops':
+                return {'stops':stops,'stale':False}
+            return {'ids':[1] if key=='stop-buses:9' else [],'stale':False}
+        async def route(self,source_id):
+            return route
+    data=asyncio.run(search_journeys(Source(),None,origin,destination,'official',0.3))
+    assert data['journeys'] and data['strategy']=='walk_bus_walk'
+    assert data['journeys'][0]['walk_to_m']>0
+
+
+def test_bad_stop_source_keeps_usable_results_but_marks_partial():
+    route,direction=fixture_route()
+    route={**route,'directions':[direction]}
+    origin,destination=direction['stops'][1],direction['stops'][3]
+    class Source:
+        async def fetch(self,key,path,normalize):
+            if key=='journey:stops':
+                return {'stops':[{'id':1,**origin},{'id':2,**destination}],'stale':False}
+            if key=='stop-buses:1':
+                raise HTTPException(503,'unavailable')
+            return {'ids':[1],'stale':False}
+        async def route(self,source_id):
+            return route
+    data=asyncio.run(search_journeys(Source(),None,origin,destination,'official',0.1))
+    assert data['partial'] and data['journeys']

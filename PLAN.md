@@ -20,13 +20,10 @@
 - [x] Passenger, operator, reconnect/error/empty states; build and Edge desktop/mobile pass.
 
 ## 4. AI (70-80 min)
-- [x] Nonblocking recommendation with deterministic fallback.
-- [x] Seeded seasonal forecast and chart; 30 tests and browser smoke passed.
+- [x] Nonblocking AI fallback, seasonal forecast/chart; 30 tests and browser smoke passed.
 
 ## 5. Quality (80-120 min)
-- [x] Unit tests: ETA, density, alert timing/reset/duplicates/recovery, validation.
-- [x] GPS-to-arrivals integration and AI failure/nonblocking tests.
-- [x] README, architecture, env guide, typed Swagger and three-minute DEMO.md.
+- [x] ETA/density/alerts/validation/GPS/AI tests; README/architecture/env/Swagger/DEMO ready.
 - [x] Final build, tests, live surge rehearsal and fresh local database startup.
 
 ## Verification record
@@ -37,9 +34,7 @@
 - Real LLM calls were not made; success/failure/timeout paths use HTTP mocks.
 
 ## Open-data update
-- [x] Download and inspect both user-provided OpenData CSV resources.
-- [x] Import 3,600 real stops and 15,686 daily ride counts for 65 route codes.
-- [x] Preserve provenance; do not invent official route-stop mappings or live loads.
+- [x] Inspect/import OpenData: 3,600 stops, 15,686 daily rides/65 codes; preserve provenance.
 - [x] Show real stop catalog/search and daily ridership chart/table with source labels.
 - [x] Verify additive upgrade, preserved reports and repeat imports; restart app.
 - [x] Update documentation; 39 tests, build, browser and static PostgreSQL DDL pass.
@@ -78,3 +73,8 @@
 ## Passenger mobile-first follow-up
 - [x] Mobile baseline, styled suggestions, 48px actions; tablet/desktop progressive layout.
 - [x] Edge 320-1440px/landscape, keyboard/pickers/search/route finder and build pass.
+
+## Walk-bus-walk correction (approximately 25 min)
+- [x] Broaden nearby stop discovery and validate/rank complete walking/bus/walking legs.
+- [x] Show walking limit, leg times and traveled bus segment; keep estimate boundaries explicit.
+- [x] 57 tests, build, real AYNA off-stop search and mobile/desktop legs/limits verified; documented and committed.

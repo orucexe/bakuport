@@ -16,6 +16,9 @@ export interface Journey {
   stop_count: number;
   walk_to_m: number;
   walk_from_m: number;
+  walk_to_minutes?: number;
+  walk_from_minutes?: number;
+  legs?: {type:'walk'|'bus';from:Place;to:Place;minutes:number;distance_m:number;shape:Place[];estimated?:boolean}[];
   ride_minutes: number;
   planned_minutes: number;
   shape: Place[];

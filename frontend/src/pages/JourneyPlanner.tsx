@@ -37,6 +37,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
   const [error, setError] = useState("");
   const [partial, setPartial] = useState(false);
   const [stale, setStale] = useState(false);
+  const [walkingLimit, setWalkingLimit] = useState(1200);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState("");
   const [gpsError, setGpsError] = useState("");
@@ -202,7 +203,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
       }>("/journeys/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ origin, destination, mode }),
+        body: JSON.stringify({ origin, destination, mode, walking_limit_m: walkingLimit }),
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
@@ -326,6 +327,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
             <ArrowRight size={18} />
           </button>
         </form>
+        <fieldset className="j-walking-limit"><legend>H?r t?r?fd? n? q?d?r piyada ged? bil?rsiniz?</legend><div>{[400,800,1200,1500].map(meters=><button key={meters} type="button" aria-pressed={walkingLimit===meters} onClick={()=>{setWalkingLimit(meters);clearSearch();}}>{meters<1000?`${meters} m`:`${meters/1000} km`}</button>)}</div><p>Piyada m?saf?l?ri d?z x?tt ?zr? t?xmindir; real yol uzana bil?r.</p></fieldset>
         <div className="j-search-tools">
           <button
             className={tracking ? "tracking" : ""}
@@ -456,7 +458,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
                       <ArrowRight size={14} />
                       {journey.alight.name}
                     </strong>
-                    <div className="j-result-meta">
+                    <div className="j-trip-timeline"><p>{journey.walk_to_m} m piyada ? {journey.board.name}</p><p>{journey.code} avtobusu ? {journey.alight.name}</p><p>{journey.walk_from_m} m piyada ? t?yinat</p></div><div className="j-result-meta">
                       <span>
                         <Footprints size={15} />
                         {journey.walk_to_m + journey.walk_from_m} m
