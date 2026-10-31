@@ -19,7 +19,8 @@ def alert_payload(alert: Alert) -> dict:
 
 def snapshot_payload(snapshot: DensitySnapshot, settings: Settings) -> dict:
     return {"route_id": snapshot.route_id, "score": snapshot.score, "confidence": snapshot.confidence,
-            "synthetic": snapshot.synthetic, "ts": snapshot.ts, "level": density_label(snapshot.score, settings)}
+            "synthetic": snapshot.synthetic, "ts": snapshot.ts,
+            "level": density_label(snapshot.score, settings) if snapshot.confidence != "unavailable" else "unknown"}
 
 
 def ordered_stops(session, route_id: int) -> list[Stop]:
@@ -31,13 +32,16 @@ def calculate_tick(sessions, settings: Settings, now: datetime) -> list[tuple[st
     events: list[tuple[str, dict]] = []
     with sessions() as session:
         for route in session.scalars(select(Route).order_by(Route.id)):
+            cutoff = now - timedelta(minutes=5)
+            if settings.demo_mode and route.scenario_started_at:
+                cutoff = max(cutoff, aware(route.scenario_started_at))
             reports = [(report.level, report.ts) for report in session.scalars(
-                select(CrowdReport).where(CrowdReport.route_id == route.id, CrowdReport.ts >= now - timedelta(minutes=5)))]
+                select(CrowdReport).where(CrowdReport.route_id == route.id, CrowdReport.ts >= cutoff))]
             speeds, dwells = [], []
             stops = ordered_stops(session, route.id)
             for bus in session.scalars(select(Bus).where(Bus.route_id == route.id)):
                 positions = list(session.scalars(select(BusPosition).where(
-                    BusPosition.bus_id == bus.id, BusPosition.ts >= now - timedelta(minutes=5))
+                    BusPosition.bus_id == bus.id, BusPosition.ts >= cutoff)
                     .order_by(BusPosition.ts.desc(), BusPosition.id.desc())))
                 if not positions or (now - aware(positions[0].ts)).total_seconds() > 30:
                     continue

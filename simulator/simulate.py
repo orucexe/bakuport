@@ -33,6 +33,7 @@ def point_at(stops: list[dict], progress: float) -> tuple[float, float]:
 
 def run(api_url: str, surge_route: int | None = None, steps: int | None = None) -> None:
     progress: dict[int, float] = {}
+    last_levels: dict[int, int] = {}
     previous = time.monotonic()
     tick = 0
     with httpx.Client(base_url=api_url, timeout=8) as client:
@@ -50,6 +51,7 @@ def run(api_url: str, surge_route: int | None = None, steps: int | None = None) 
                     stops = client.get(f'/routes/{route["id"]}/stops').json()
                     buses = client.get(f'/routes/{route["id"]}/buses').json()
                     total = sum(distance(a, b) for a, b in zip(stops, stops[1:] + stops[:1]))
+                    changed = last_levels.get(route["id"]) != route.get("surge_level", 0)
                     for index, bus in enumerate(buses):
                         busy = route.get("surge_level", 0) > 0
                         speed = random.uniform(0.5, 2) if busy else random.uniform(15, 28)
@@ -59,13 +61,13 @@ def run(api_url: str, surge_route: int | None = None, steps: int | None = None) 
                         lat, lng = point_at(stops, progress[bus["id"]])
                         client.post("/gps", json={"bus_id": bus["id"], "lat": lat, "lng": lng,
                                                    "speed_kmh": speed}).raise_for_status()
-                        if tick % 5 == 0:
+                        if tick % 5 == 0 or changed:
                             hour = datetime.now(ZoneInfo("Asia/Baku")).hour
                             level = route["surge_level"] if busy else random.choices(
                                 [1, 2, 3, 4, 5], [1, 2, 4, 5, 3] if hour in (8, 9, 17, 18, 19) else [4, 5, 3, 2, 1])[0]
                             response = client.post("/crowd-reports", json={"bus_id": bus["id"], "route_id": route["id"], "level": level})
-                            if response.status_code != 404:
-                                response.raise_for_status()
+                            response.raise_for_status()
+                    last_levels[route["id"]] = route.get("surge_level", 0)
                 tick += 1
                 log.info("Sent GPS tick %s for %s routes", tick, len(routes))
             except (httpx.HTTPError, ValueError, KeyError):
@@ -81,4 +83,5 @@ if __name__ == "__main__":
     parser.add_argument("--steps", type=int, help="Exit after this many successful ticks")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     run(args.api_url, args.surge_route, args.steps)

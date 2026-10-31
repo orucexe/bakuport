@@ -13,6 +13,7 @@ class Route(Base):
     name: Mapped[str] = mapped_column(String(150))
     color: Mapped[str] = mapped_column(String(7))
     surge_level: Mapped[int] = mapped_column(default=0)
+    scenario_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     high_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     low_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

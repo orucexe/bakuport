@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from ..db import aware, utcnow
 from ..models import Alert, Bus, BusPosition, CrowdReport, DensitySnapshot, Route, RouteStop, Stop
-from ..schemas import CrowdInput
+from ..schemas import AlertOutput, ArrivalOutput, CrowdInput, CrowdOutput, DensityOutput, ForecastOutput, SurgeOutput
 from ..services.density import density_label
 from ..services.engine import alert_payload, ordered_stops, snapshot_payload
 from ..services.eta import eta_minutes
@@ -16,7 +16,7 @@ from ..services.ai import forecast
 router = APIRouter()
 
 
-@router.get("/operator/forecast/{route_id}", tags=["Operator"], summary="Next 60 minutes: hour/day seasonal baseline",
+@router.get("/operator/forecast/{route_id}", response_model=ForecastOutput, tags=["Operator"], summary="Next 60 minutes: hour/day seasonal baseline",
             description="Four 15-minute forecasts in Baku time. Synthetic seed history is marked. No external AI key is needed.")
 def density_forecast(route_id: int, request: Request):
     with request.app.state.sessions() as session:
@@ -31,7 +31,7 @@ def require_route(session, route_id: int) -> Route:
     return route
 
 
-@router.post("/crowd-reports", tags=["Ingestion"], status_code=201,
+@router.post("/crowd-reports", response_model=CrowdOutput, tags=["Ingestion"], status_code=201,
              summary="Report crowd level 1–5; optional bus must belong to route")
 async def crowd_report(payload: CrowdInput, request: Request):
     with request.app.state.sessions() as session:
@@ -50,7 +50,7 @@ async def crowd_report(payload: CrowdInput, request: Request):
     return result
 
 
-@router.get("/stops/{stop_id}/arrivals", tags=["Stops"], summary="Upcoming buses, ETA minutes and crowd level",
+@router.get("/stops/{stop_id}/arrivals", response_model=list[ArrivalOutput], tags=["Stops"], summary="Upcoming buses, ETA minutes and crowd level",
             description="Projects fresh bus fixes onto ordered route segments; excludes passed stops and fixes older than 30 seconds.")
 def arrivals(stop_id: int, request: Request):
     now = utcnow()
@@ -86,7 +86,7 @@ def arrivals(stop_id: int, request: Request):
     return sorted(result, key=lambda item: item["eta_minutes"])
 
 
-@router.get("/operator/density", tags=["Operator"], summary="Latest measured density; synthetic seed history is excluded")
+@router.get("/operator/density", response_model=list[DensityOutput], tags=["Operator"], summary="Latest measured density; synthetic seed history is excluded")
 def current_density(request: Request):
     result = []
     with request.app.state.sessions() as session:
@@ -98,7 +98,7 @@ def current_density(request: Request):
     return result
 
 
-@router.get("/operator/density/{route_id}/history", tags=["Operator"], summary="Density history with explicitly marked synthetic samples")
+@router.get("/operator/density/{route_id}/history", response_model=list[DensityOutput], tags=["Operator"], summary="Density history with explicitly marked synthetic samples")
 def history(route_id: int, request: Request, minutes: int = Query(60, ge=1, le=20160)):
     with request.app.state.sessions() as session:
         require_route(session, route_id)
@@ -107,7 +107,7 @@ def history(route_id: int, request: Request, minutes: int = Query(60, ge=1, le=2
         return [snapshot_payload(snapshot, request.app.state.settings) for snapshot in snapshots]
 
 
-@router.get("/operator/alerts", tags=["Operator"], summary="Stored high-density alerts and recommendations")
+@router.get("/operator/alerts", response_model=list[AlertOutput], tags=["Operator"], summary="Stored high-density alerts and recommendations")
 def alerts(request: Request, status: Literal["open", "resolved", "all"] = "open"):
     with request.app.state.sessions() as session:
         query = select(Alert).order_by(Alert.started_at.desc())
@@ -116,7 +116,7 @@ def alerts(request: Request, status: Literal["open", "resolved", "all"] = "open"
         return [alert_payload(alert) for alert in session.scalars(query)]
 
 
-@router.post("/demo/surge", tags=["Demo"], summary="Demo-only simulator crowd/slowdown control; level 0 disables",
+@router.post("/demo/surge", response_model=SurgeOutput, tags=["Demo"], summary="Demo-only simulator crowd/slowdown control; level 0 disables",
              description="Example: POST /demo/surge?route_id=1&level=5. Only enabled with DEMO_MODE=true. Simulator reads this state on its next tick.")
 async def surge(request: Request, route_id: int = Query(..., gt=0), level: int = Query(5, ge=0, le=5)):
     if not request.app.state.settings.demo_mode:
@@ -124,6 +124,9 @@ async def surge(request: Request, route_id: int = Query(..., gt=0), level: int =
     with request.app.state.sessions() as session:
         route = require_route(session, route_id)
         route.surge_level = level
+        # A demo scenario starts a fresh observation window without deleting history.
+        route.scenario_started_at = utcnow()
+        route.high_since = route.low_since = None
         session.commit()
     # Give the simulator one tick to send fresh slow fixes and crowd reports.
     request.app.state.next_tick = min(request.app.state.next_tick, time.monotonic() + 5)

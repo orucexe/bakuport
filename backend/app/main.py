@@ -11,7 +11,7 @@ from .config import Settings
 from .db import Base, make_database, utcnow
 from .live import LiveHub
 from .models import Alert, Bus, BusPosition, Route, RouteStop, Stop
-from .schemas import GPSInput
+from .schemas import BusOutput, GPSInput, GPSOutput, HealthOutput, RouteOutput, StopOutput
 from .seed import seed
 from .routers.analytics import router as analytics_router
 from .services.engine import alert_payload, calculate_tick
@@ -90,19 +90,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
-    @app.get("/health", tags=["System"], summary="Database readiness and demo configuration")
+    @app.get("/health", response_model=HealthOutput, tags=["System"], summary="Database readiness and demo configuration")
     def health():
         with sessions() as session:
             session.execute(select(1))
         return {"status": "ok", "demo_mode": settings.demo_mode,
-                "alert_window_minutes": settings.effective_alert_minutes}
+                "alert_window_minutes": settings.effective_alert_minutes,
+                "green_threshold": settings.green_threshold, "red_threshold": settings.red_threshold,
+                "density_threshold": settings.density_threshold}
 
-    @app.get("/routes", tags=["Routes"], summary="List fictional Baku demo routes")
+    @app.get("/routes", response_model=list[RouteOutput], tags=["Routes"], summary="List fictional Baku demo routes")
     def routes():
         with sessions() as session:
             return list(session.scalars(select(Route).order_by(Route.id)))
 
-    @app.get("/routes/{route_id}", tags=["Routes"], summary="Get a demo route")
+    @app.get("/routes/{route_id}", response_model=RouteOutput, tags=["Routes"], summary="Get a demo route")
     def route(route_id: int):
         with sessions() as session:
             result = session.get(Route, route_id)
@@ -110,19 +112,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(404, "Route not found")
             return result
 
-    @app.get("/routes/{route_id}/stops", tags=["Routes"], summary="Ordered route stops")
+    @app.get("/routes/{route_id}/stops", response_model=list[StopOutput], tags=["Routes"], summary="Ordered route stops")
     def stops_on_route(route_id: int):
         route(route_id)
         with sessions() as session:
             return list(session.scalars(select(Stop).join(RouteStop).where(RouteStop.route_id == route_id)
                                         .order_by(RouteStop.sequence)))
 
-    @app.get("/stops", tags=["Stops"], summary="List demo stops")
+    @app.get("/stops", response_model=list[StopOutput], tags=["Stops"], summary="List demo stops")
     def stops():
         with sessions() as session:
             return list(session.scalars(select(Stop).order_by(Stop.id)))
 
-    @app.get("/routes/{route_id}/buses", tags=["Routes"], summary="Buses with latest live positions")
+    @app.get("/routes/{route_id}/buses", response_model=list[BusOutput], tags=["Routes"], summary="Buses with latest live positions")
     def buses(route_id: int):
         route(route_id)
         with sessions() as session:
@@ -134,7 +136,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                "capacity": bus.capacity, "position": position})
             return result
 
-    @app.post("/gps", tags=["Ingestion"], status_code=201, summary="Ingest a server-timestamped GPS fix")
+    @app.post("/gps", response_model=GPSOutput, tags=["Ingestion"], status_code=201, summary="Ingest a server-timestamped GPS fix")
     async def gps(payload: GPSInput):
         with sessions() as session:
             bus = session.get(Bus, payload.bus_id)
