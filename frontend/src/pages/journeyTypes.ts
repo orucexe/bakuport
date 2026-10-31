@@ -26,6 +26,10 @@ export interface Journey {
   stale: boolean;
   mode: "official" | "demo";
   source_url?: string;
+  fetched_at?: string;
+  ride_time_basis?: 'published_route_duration_scaled'|'assumed_18_kmh';
+  walking_status?: 'provider'|'estimate'|'over_limit';
+  walking_warnings?: string[];
 }
 export interface Vehicle {
   vehicle_id: string;

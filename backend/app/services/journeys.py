@@ -56,6 +56,10 @@ def slice_path(path: list[dict], start_km: float, end_km: float) -> list[dict]:
 
 def match_direction(route: dict, direction: dict, origin: dict, destination: dict, walk_km: float) -> dict | None:
     stops, path = direction['stops'], direction['shape']
+    full_distance = sum(distance(a,b) for a,b in zip(path,path[1:]))
+    published_minutes = route.get('published_duration_minutes')
+    minutes_per_km = published_minutes/full_distance if published_minutes and full_distance else 60/18
+    timing_basis = 'published_route_duration_scaled' if published_minutes and full_distance else 'assumed_18_kmh'
     board = [(i, distance(origin,s)) for i,s in enumerate(stops) if distance(origin,s) <= walk_km]
     alight = [(i, distance(destination,s)) for i,s in enumerate(stops) if distance(destination,s) <= walk_km]
     candidates = []
@@ -67,7 +71,7 @@ def match_direction(route: dict, direction: dict, origin: dict, destination: dic
             end_km, _ = locate(stops[end],path)
             if end_km <= start_km:
                 continue
-            ride = (end_km-start_km)/18*60
+            ride = (end_km-start_km)*minutes_per_km
             candidates.append((before/4.5*60+after/4.5*60+ride, start, end, before, after, ride))
     if not candidates:
         return None
@@ -92,7 +96,8 @@ def match_direction(route: dict, direction: dict, origin: dict, destination: dic
             'walk_from_minutes':round(after_minutes, 1), 'legs':legs,
             'planned_minutes':math.ceil(total), 'shape':ride_shape,
             'stops':stops, 'stale':route.get('stale',False), 'fetched_at':route.get('fetched_at'),
-            'source_url':route.get('source_url'), 'live_available':False}
+            'source_url':route.get('source_url'), 'live_available':False,
+            'ride_time_basis':timing_basis, 'published_duration_minutes':published_minutes}
 
 
 def normalize_stops(raw: list[dict]) -> dict:

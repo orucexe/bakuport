@@ -17,7 +17,6 @@
 - [x] REST/Swagger/validation, projected ETA, density/alerts/hysteresis, surge/WS; 22 tests and commit.
 
 ## 3. Frontend (45-70 min)
-- [x] Passenger, operator, reconnect/error/empty states; build and Edge desktop/mobile pass.
 
 ## 4. AI (70-80 min)
 - [x] Nonblocking AI fallback, seasonal forecast/chart; 30 tests and browser smoke passed.
@@ -38,7 +37,6 @@
 - [x] Show real stop catalog/search and daily ridership chart/table with source labels.
 - [x] Verify additive upgrade, preserved reports and repeat imports; restart app.
 - [x] Update documentation; 39 tests, build, browser and static PostgreSQL DDL pass.
-- Source window: Jan 1-Sep 30, 2026; no October records invented or daily loads inferred.
 
 ## Official route integration
 - [x] Inspect official AYNA/BakuBus services; verify 209 route entries and geometry.
@@ -52,10 +50,7 @@
 - [x] Google Maps on all views; ignored key/env/build wiring, docs, browser checks and commit complete.
 
 ## Passenger UI (requested follow-up; approximately 45 min)
-- [x] Apply ui-ux-pro-max with DESIGN-airbnb.md as the visual source of truth.
-- [x] Scope white/rose styling, desktop search/rail and mobile native dialogs to passenger.
-- [x] Preserve maps, demo labels, route/stop selection, arrivals, reports and source links.
-- [x] Build, Edge 320-1440px layouts, dialogs, reports, API error/empty/retry and existing views pass; commit.
+- [x] Airbnb passenger UI, scoped styling/maps/reports/sources; build/Edge verified and committed.
 
 ## Official passenger routes (approximately 30 min)
 - [x] AYNA passenger catalog, shapes/directions/stops, separate demo; build/browser verified and committed.
@@ -78,3 +73,8 @@
 - [x] Broaden nearby stop discovery and validate/rank complete walking/bus/walking legs.
 - [x] Show walking limit, leg times and traveled bus segment; keep estimate boundaries explicit.
 - [x] 57 tests, build, real AYNA off-stop search and mobile/desktop legs/limits verified; documented and committed.
+
+## Real-data verification (approximately 40 min)
+- [x] Verified AYNA 1/2/62 captures, published durations/source and real-geometry regression tests.
+- [x] Unknown fare/source labels, Google walking paths/time/limits with explicit fallback.
+- [x] 62 backend + 4 walking tests, build, real Google walking and AYNA searches pass; documented and committed.

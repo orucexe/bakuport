@@ -39,7 +39,7 @@ export default function JourneyMap({
   const lines = useMemo(
     () =>
       journey
-        ? [{ id: journey.key, path: journey.shape, color: "#ff385c" }]
+        ? [{ id: journey.key, path: journey.shape, color: "#ff385c" }, ...(journey.legs || []).filter(leg => leg.type === "walk").map((leg,index) => ({ id: `walking-${index}`, path: leg.shape, color: "#64748b", dashed: true }))]
         : [],
     [journey],
   );

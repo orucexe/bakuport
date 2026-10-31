@@ -110,6 +110,8 @@ export interface MapLine {
   id: string;
   path: MapPoint[];
   color: string;
+  dashed?: boolean;
+  weight?: number;
 }
 export interface MapStop extends MapPoint {
   id: string;
@@ -151,17 +153,37 @@ export function GoogleRouteLines({ lines }: { lines: MapLine[] }) {
   const map = useMap();
   useEffect(() => {
     if (!map) return;
-    const paths = lines.map(
-      (line) =>
-        new google.maps.Polyline({
+    const paths = lines.map((line) => {
+      if (line.dashed) {
+        const lineSymbol = {
+          path: "M 0,-1 0,1",
+          strokeOpacity: 1,
+          scale: line.weight ? line.weight * 0.8 : 3,
+          strokeColor: line.color,
+        };
+        return new google.maps.Polyline({
           map,
           path: line.path,
-          strokeColor: line.color,
-          strokeOpacity: 0.85,
-          strokeWeight: 5,
+          strokeOpacity: 0,
+          icons: [
+            {
+              icon: lineSymbol,
+              offset: "0",
+              repeat: "14px",
+            },
+          ],
           clickable: false,
-        }),
-    );
+        });
+      }
+      return new google.maps.Polyline({
+        map,
+        path: line.path,
+        strokeColor: line.color,
+        strokeOpacity: 0.85,
+        strokeWeight: line.weight || 5,
+        clickable: false,
+      });
+    });
     return () => paths.forEach((path) => path.setMap(null));
   }, [map, lines]);
   return null;

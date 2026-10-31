@@ -72,7 +72,13 @@ def normalize_route(raw, expected_id: int) -> dict:
     length, tariff = float(raw["routLength"]), float(raw["tariff"]) / 100
     if not all(math.isfinite(value) and value >= 0 for value in (length, tariff)):
         raise ValueError("Invalid official route metadata")
+    published_minutes = raw.get('durationMinuts')
+    if published_minutes is not None:
+        published_minutes = float(published_minutes)
+        if not math.isfinite(published_minutes) or published_minutes <= 0:
+            published_minutes = None
     return {"source_id": expected_id, "code": str(raw["number"]), "carrier": str(raw.get("carrier") or ""),
+            'published_duration_minutes': published_minutes,
             "first_stop": str(raw["firstPoint"]), "last_stop": str(raw["lastPoint"]),
             "length_km": length, "tariff_azn": tariff, "tariff_label": str(raw.get("tariffStr") or f"{tariff:.2f} AZN"),
             "directions": directions}
@@ -86,6 +92,16 @@ def bootstrap_official_cache(session) -> None:
             suffix = "/api/bus/getBusList" if key == "catalog" else f"/api/bus/getBusById?id={key.split(':')[1]}"
             session.add(OfficialRouteCache(key=key, payload=payload, source_url=snapshot["api_url"] + suffix,
                                           fetched_at=stamp))
+    verified = json.loads((DATA_DIR / 'verified_journey_routes.json').read_text(encoding='utf-8'))
+    verified_at = datetime.fromisoformat(verified['retrieved_at'])
+    for payload in verified['routes']:
+        key = f"route:{payload['source_id']}"
+        row = session.get(OfficialRouteCache, key)
+        if row is None:
+            session.add(OfficialRouteCache(key=key,payload=payload,
+                source_url=f"{snapshot['api_url']}/api/bus/getBusById?id={payload['source_id']}",fetched_at=verified_at))
+        elif aware(row.fetched_at) < aware(verified_at):
+            row.payload, row.fetched_at = payload, verified_at
     session.commit()
 
 

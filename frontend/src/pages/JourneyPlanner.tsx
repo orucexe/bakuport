@@ -25,6 +25,7 @@ import type { Journey, Vehicle } from "./journeyTypes";
 import "./passenger.css";
 import "./journey.css";
 import "./passenger-responsive.css";
+import { refineWalking } from "../services/walking";
 
 export default function JourneyPlanner({ transit }: { transit: Transit }) {
   const [origin, setOrigin] = useState<Place | null>(null);
@@ -207,7 +208,9 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
-      setJourneys(data.journeys);
+      const refined = mode === "official" ? await refineWalking(data.journeys, walkingLimit, controller.signal) : data.journeys;
+      if (controller.signal.aborted) return;
+      setJourneys(refined);
       setPartial(data.partial);
       setStale(data.stale);
       setSearched(true);
@@ -327,7 +330,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
             <ArrowRight size={18} />
           </button>
         </form>
-        <fieldset className="j-walking-limit"><legend>H?r t?r?fd? n? q?d?r piyada ged? bil?rsiniz?</legend><div>{[400,800,1200,1500].map(meters=><button key={meters} type="button" aria-pressed={walkingLimit===meters} onClick={()=>{setWalkingLimit(meters);clearSearch();}}>{meters<1000?`${meters} m`:`${meters/1000} km`}</button>)}</div><p>Piyada m?saf?l?ri d?z x?tt ?zr? t?xmindir; real yol uzana bil?r.</p></fieldset>
+        <fieldset className="j-walking-limit"><legend>Hər tərəfdə nə qədər piyada gedə bilərsiniz?</legend><div>{[400,800,1200,1500].map(meters=><button key={meters} type="button" aria-pressed={walkingLimit===meters} onClick={()=>{setWalkingLimit(meters);clearSearch();}}>{meters<1000?`${meters} m`:`${meters/1000} km`}</button>)}</div><p>Piyada məsafələri düz xətt üzrə təxmindir; keçidlər və maneələrə görə real yol uzana bilər.</p></fieldset>
         <div className="j-search-tools">
           <button
             className={tracking ? "tracking" : ""}
@@ -458,7 +461,9 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
                       <ArrowRight size={14} />
                       {journey.alight.name}
                     </strong>
-                    <div className="j-trip-timeline"><p>{journey.walk_to_m} m piyada ? {journey.board.name}</p><p>{journey.code} avtobusu ? {journey.alight.name}</p><p>{journey.walk_from_m} m piyada ? t?yinat</p></div><div className="j-result-meta">
+                    <div className="j-trip-timeline"><p>{journey.walk_to_m} m piyada → {journey.board.name}</p><p>{journey.code} avtobusu → {journey.alight.name}</p><p>{journey.walk_from_m} m piyada → təyinat</p></div><p className="j-search-disclosure">{journey.walking_status==='provider'?'Piyada yolu: Google Routes':'Piyada yolu: düz xətt təxmini'} · {journey.ride_time_basis==='published_route_duration_scaled'?'Avtobus vaxtı: mənbənin ümumi müddətindən təxmini':'Avtobus vaxtı: 18 km/saat fərziyyəsi'} · gözləmə daxil deyil.</p>
+                        {journey.fetched_at&&<p className="j-search-disclosure">AYNA məlumatı: {utcDate(journey.fetched_at).toLocaleDateString('az-AZ')}{journey.stale?' · saxlanmış nüsxə':''}</p>}
+                        {journey.walking_warnings?.map((warning,index)=><p key={index} className="j-search-disclosure">{warning.replace(/<[^>]*>/g,'')}</p>)}<div className="j-result-meta">
                       <span>
                         <Footprints size={15} />
                         {journey.walk_to_m + journey.walk_from_m} m

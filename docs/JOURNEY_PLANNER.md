@@ -26,4 +26,16 @@ The UI polls every five seconds, independently hides stale fixes, offers vehicle
 
 ## Verification
 
+### Verified real data and walking refinement
+
+`backend/data/verified_journey_routes.json` contains freshly retrieved, normalized AYNA routes 1, 2 and 62 with a retrieval timestamp, real fares, directions, shapes and source-published total durations (43, 73 and 52 minutes respectively at capture). Route code **62** is AYNA source ID **48**; source IDs are never treated as public bus numbers. Startup imports these samples only when newer than the cached row. Network refresh can subsequently replace them.
+
+Bus segment planning now scales the source-published total duration by the traveled directional road length when available. The `ride_time_basis` field distinguishes this approximation from `assumed_18_kmh`; neither is presented as a timetable or traffic-aware GPS ETA.
+
+For up to three returned options, the browser calls the Google Maps Routes library with `WALKING` and requests path, distance, duration and warnings. Successful responses replace both walking legs and recalculate the combined duration; an option exceeding the selected walking limit is excluded. Other options and denied/unavailable services remain explicitly labeled straight-line estimates. Warnings are rendered as text. Routes API access/billing is required in addition to the existing map. This refinement is bounded to avoid issuing walking requests for every candidate. See [Google's official Routes guide](https://developers.google.com/maps/documentation/javascript/routes/get-a-route).
+
+Manually curated landmark coordinates are labeled approximate, while OpenData and Google suggestions have source labels. Missing fares display as unknown instead of inventing a default price. Source retrieval dates appear with journey results.
+
+Verification on this host: 62 backend tests, four frontend walking tests (`cd frontend && npm test`), production build and real Google walking request passed. The real walking example returned 305 m / 32 m, replacing straight-line estimates. A real off-stop search on line 62 returned lines 62 and 40 with source fares and published-duration timing. Cold searches took 61–72 seconds because the AYNA adapter retains its one-request-per-second pacing; cached repeats are faster. Official live bus GPS remains unavailable and demo telemetry remains explicitly separate.
+
 Run `pytest` from the repo root and `npm run build` in `frontend`. Journey tests cover directional matching, walking bounds, invalid coordinates/provider records, open-path projection, terminal clamping, fresh/stale/off-route/passed GPS, smoothed speed, input validation and API ingestion-to-arrival isolation from the demo. Browser checks cover real AYNA search, combobox keyboard use, user-location permission/denial, GPS motion/prediction, reports, retry/empty states and responsive layouts.

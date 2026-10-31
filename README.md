@@ -12,6 +12,8 @@ No working official bus GPS provider has been verified. The new `POST /vehicles/
 
 ## Official open-data snapshots
 
+Real-data checks now include captured AYNA routes 1/2/62, source-published total durations, source-labeled suggestions and optional Google Routes walking geometry. Published-duration scaling is an estimate, not live ETA. Missing fares remain unknown. Run backend checks with `pytest` and walking success/denial/limit checks with `cd frontend && npm test`. See [verification details and source boundaries](docs/JOURNEY_PLANNER.md#verified-real-data-and-walking-refinement).
+
 Operator styling follows [DESIGN-airtable.md](DESIGN-airtable.md): white editorial workspace, ink actions, forest/coral/cream signature surfaces, section navigation, styled statistical filters and accessible chart tables. Its [design record](design-system/idda-operator/MASTER.md) documents the scoped tokens. Passenger layout starts with a stacked mobile search and expands into a result/map grid on desktop; [passenger-responsive.css](frontend/src/pages/passenger-responsive.css) contains the progressive breakpoints.
 
 The **[Official routes view](http://localhost:5173/#routes)** now integrates the public AYNA route service: 209 route entries with on-demand directional road geometry, ordered stops, carrier and fares. It does not show fake live vehicles. The server caches source responses and marks stale fallback data. See [real-data source verification](docs/REAL_DATA_SOURCES.md) for endpoints, captured examples, cache behavior and the GPS investigation.
