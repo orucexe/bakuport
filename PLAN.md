@@ -39,12 +39,7 @@
 - [x] Update documentation; 39 tests, build, browser and static PostgreSQL DDL pass.
 
 ## Official route integration
-- [x] Inspect official AYNA/BakuBus services; verify 209 route entries and geometry.
-- [x] Integrate actual bidirectional route paths, stops, carrier and tariff in the UI.
-- [x] Add persistent source cache, bounded requests and explicit stale/error states.
-- [x] Keep official metadata separate from simulated GPS; document unavailable feed.
-- [x] 48 tests, build, desktop/mobile/error browser checks and real route 62 fetch pass.
-- Old BakuBus GPS endpoint returned 404; no unverified GPS feed was enabled.
+- [x] AYNA 209 routes/directions/stops/fares, cache/errors and source isolation; 48 tests/build/browser pass.
 
 ## Google Maps (user-requested stack change)
 - [x] Google Maps on all views; ignored key/env/build wiring, docs, browser checks and commit complete.
@@ -78,3 +73,8 @@
 - [x] Verified AYNA 1/2/62 captures, published durations/source and real-geometry regression tests.
 - [x] Unknown fare/source labels, Google walking paths/time/limits with explicit fallback.
 - [x] 62 backend + 4 walking tests, build, real Google walking and AYNA searches pass; documented and committed.
+
+## Vercel / Render deployment
+- [x] Vercel project/environment, SPA routes, backend URL/WS wiring; frontend production published.
+- [x] Render PostgreSQL blueprint/CORS/driver setup, deployment docs and two config tests.
+- [ ] Render deployment awaits user Git repository URL and account authorization; then connect frontend.

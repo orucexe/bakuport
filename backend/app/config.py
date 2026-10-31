@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     load_open_data: bool = True
     ayna_api_url: str = "https://map-api.ayna.gov.az"
     ayna_cache_hours: float = Field(24, ge=1, le=168)
+    cors_origins: str = 'http://localhost:5173,http://127.0.0.1:5173'
     density_threshold: float = Field(70, ge=1, le=100)
     alert_window_minutes: float = Field(10, gt=0)
     alert_hysteresis: float = Field(10, ge=0)

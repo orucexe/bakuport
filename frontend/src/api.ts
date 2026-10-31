@@ -1,5 +1,8 @@
+import { apiBase, backendConfigured, backendUnavailableMessage } from './backend';
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, init);
+  if (!backendConfigured) throw new Error(backendUnavailableMessage);
+  const response = await fetch(`${apiBase}${path}`, init);
   if (!response.ok)
     throw new Error(
       response.status === 403

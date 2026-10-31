@@ -27,6 +27,8 @@ def upgrade_stop_columns(engine) -> None:
 
 
 def make_database(url: str):
+    if url.startswith(('postgres://', 'postgresql://')):
+        url = 'postgresql+psycopg://' + url.split('://', 1)[1]
     options = {}
     if url.startswith("sqlite"):
         options = {"connect_args": {"check_same_thread": False}}

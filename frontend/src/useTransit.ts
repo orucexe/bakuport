@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
+import { backendConfigured, liveSocketUrl } from './backend';
 import type {
   Alert,
   Bus,
@@ -66,14 +67,16 @@ export function useTransit() {
   }, []);
   useEffect(() => {
     mounted.current = true;
+    if (!backendConfigured) {
+      void refresh();
+      return () => { mounted.current = false; };
+    }
     let disposed = false;
     let retry: ReturnType<typeof setTimeout>;
     let ws: WebSocket;
     let heartbeat: ReturnType<typeof setInterval>;
     function connect() {
-      ws = new WebSocket(
-        `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/live`,
-      );
+      ws = new WebSocket(liveSocketUrl());
       ws.onopen = () => {
         if (disposed) {
           ws.close();

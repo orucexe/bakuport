@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { api, utcDate } from "../api";
+import { backendConfigured, backendUnavailableMessage } from "../backend";
 import PlacePicker, { type Place } from "../components/PlacePicker";
 import JourneyMap from "../components/JourneyMap";
 import type { Transit } from "../useTransit";
@@ -284,6 +285,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
         </div>
       </header>
       <main className="p-content" id="journey-content">
+        {!backendConfigured && <p className="j-banner error" role="status">{backendUnavailableMessage}</p>}
         <div className="j-intro">
           <span className="j-eyebrow">
             <Navigation size={14} />

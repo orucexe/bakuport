@@ -102,7 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(open_data_router)
     app.include_router(official_routes_router)
     app.include_router(journeys_router)
-    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    app.add_middleware(CORSMiddleware, allow_origins=[origin.strip() for origin in settings.cors_origins.split(',') if origin.strip()],
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
     @app.get("/health", response_model=HealthOutput, tags=["System"], summary="Database readiness and demo configuration")
