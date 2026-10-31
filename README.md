@@ -2,7 +2,7 @@
 
 BakuPort helps passengers find **walk → bus → walk** journeys across Baku. The operator workspace provides route-density analytics, alerts, recommendations and historical ridership charts. The interface is in Azerbaijani.
 
-[Website](https://bakuport.orucs.net) · [API documentation](https://idda-api.onrender.com/docs) · [Demo walkthrough](DEMO.md)
+[Website](https://bakuport.orucs.net) · [API documentation](https://idda-api.onrender.com/docs)
 
 ## Run locally
 
@@ -131,7 +131,7 @@ flowchart LR
 | `GET /operator/ridership/routes`, `/operator/ridership/{code}` | Historical daily ride counts |
 | `WS /ws/live` | Position, crowd, density and alert events |
 
-Density combines recent crowd reports and GPS slowdown/dwell indicators, normally with weights **0.6 / 0.4**. Sustained high density triggers one open alert per route after **10 minutes**, or **1 minute in demo mode**; recovery uses hysteresis and a two-minute low-density window. Recommendations fall back to templates; forecasts use a small statistical baseline. See [algorithm details](docs/JOURNEY_PLANNER.md) and [DEMO.md](DEMO.md).
+Density combines recent crowd reports and GPS slowdown/dwell indicators, normally with weights **0.6 / 0.4**. Sustained high density triggers one open alert per route after **10 minutes**, or **1 minute in demo mode**; recovery uses hysteresis and a two-minute low-density window. Recommendations fall back to templates; forecasts use a small statistical baseline.
 
 ## Data sources and limitations
 
@@ -145,7 +145,7 @@ Counts below describe the bundled or verified source snapshots, not a guarantee 
 | Google Maps Platform | Basemap, geocoding and optional walking-route geometry/time | Requires a browser key and enabled services. Failed walking refinement remains a labeled straight-line estimate. Manually curated place suggestions are approximate. |
 | Local seed and simulator | Seeded paths, vehicle identities, generated GPS/reports and synthetic history | Development fixtures, even when labels resemble actual bus numbers. These are **not verified live operator data** and must not be treated as official route geometry. |
 
-Bundled files live in [`backend/data`](backend/data). [`manifest.json`](backend/data/manifest.json) records OpenData provenance, resource URLs, hashes and license metadata. The ridership source lists `cc-by`; the stop source does not specify a license. Preserve attribution. See [source verification](docs/REAL_DATA_SOURCES.md) for availability and reuse boundaries.
+Bundled files live in [`backend/data`](backend/data). [`manifest.json`](backend/data/manifest.json) records OpenData provenance, resource URLs, hashes and license metadata. The ridership source lists `cc-by`; the stop source does not specify a license. Preserve attribution.
 
 **No working official live bus GPS feed has been verified.** Real lines use AYNA metadata; moving simulator vehicles remain simulated. Bus time is scaled from a published route duration where available, otherwise estimated at 18 km/h; waiting is excluded. Walking distances/times use Google Routes when available, otherwise haversine distance and 4.5 km/h. Phone live location is opt-in and is not itself bus GPS. Transfers between buses are not implemented.
 
@@ -170,13 +170,3 @@ npm run build
 
 Coverage includes ETA, walking/bus/walking matching, GPS freshness, density, alert timing/recovery, validation, source imports/cache, provider failure and walking-limit handling. Build validates TypeScript and bundles the frontend. Docker startup must be checked on a host with Docker available.
 
-## Deployment and further documentation
-
-Frontend is hosted on **Vercel** and the API/database on **Render**. Production uses a Vercel `/api` rewrite to Render plus a direct Render WebSocket. Keep production URL settings out of local development unless intentionally using the hosted API.
-
-- [Vercel / Render setup and environment variables](docs/DEPLOYMENT.md)
-- [Journey planner, GPS and walking algorithms](docs/JOURNEY_PLANNER.md)
-- [Real-data sources and verification](docs/REAL_DATA_SOURCES.md)
-- [Three-minute presentation script](DEMO.md)
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/orucexe/bakuport)

@@ -78,6 +78,7 @@
 - [x] Render PostgreSQL blueprint/CORS/driver setup, deployment docs and two config tests.
 - [x] Published github.com/orucexe/bakuport (master); clean checkout: 65 backend tests and frontend checks pass.
 - [x] Connected Render/Vercel; REST/WS/maps/search verified. GitHub README rewritten with numbered setup, architecture/data; Docker API config corrected.
+- [x] Remove requested README deployment section and four linked Markdown docs; deliver Azerbaijani AI declaration and technical explanation as validated DOCX.
 
 ## Unified Map Fallback (Google Maps & OpenStreetMap)
 - [x] Universal map provider with seamless OpenStreetMap fallback on Google auth/load failure or timeout.
