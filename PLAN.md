@@ -1,4 +1,4 @@
-﻿# IDDA implementation plan
+# IDDA implementation plan
 
 ## Assumptions and risks
 - Budget: 120 minutes; one implementation stream; final 30 minutes are fixes only.
@@ -78,3 +78,9 @@
 - [x] Render PostgreSQL blueprint/CORS/driver setup, deployment docs and two config tests.
 - [x] Published github.com/orucexe/bakuport (master); clean checkout: 65 backend tests and frontend checks pass.
 - [x] Connected Render/Vercel; REST/WS/maps/search verified. GitHub README rewritten with numbered setup, architecture/data; Docker API config corrected.
+
+## Unified Map Fallback (Google Maps & OpenStreetMap)
+- [x] Universal map provider with seamless OpenStreetMap fallback on Google auth/load failure or timeout.
+- [x] High-fidelity CartoDB Voyager transit tile styling with matching fonts, popups, and markers.
+- [x] Portaled DOM markers and custom popups for buses, stops, and journey pins; toggle badge in legend.
+- [x] 65 backend + 4 frontend tests and production build verified.
