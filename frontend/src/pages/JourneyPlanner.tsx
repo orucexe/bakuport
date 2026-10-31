@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, useMemo, type FormEvent } from "react";
 import {
   ArrowDownUp,
   ArrowRight,
+  ArrowLeftRight,
   BusFront,
   Check,
   ChevronRight,
@@ -14,21 +15,60 @@ import {
   Route,
   Search,
   ShieldCheck,
+  Compass,
   Users,
   X,
 } from "lucide-react";
 import { api, utcDate } from "../api";
-import { backendConfigured, backendUnavailableMessage } from "../backend";
+import { backendConfigured, backendUnavailableMessage } from '../backend';
 import PlacePicker, { type Place } from "../components/PlacePicker";
-import JourneyMap from "../components/JourneyMap";
+import JourneyMap, { type RouteViewData } from "../components/JourneyMap";
+import { BakuPortLogo } from "../components/BakuPortLogo";
+import CrowdReportCard from "../components/CrowdReportCard";
 import type { Transit } from "../useTransit";
 import type { Journey, Vehicle } from "./journeyTypes";
+import { refineWalking } from '../services/walking';
 import "./passenger.css";
 import "./journey.css";
 import "./passenger-responsive.css";
-import { refineWalking } from "../services/walking";
+
+interface CatalogRoute {
+  source_id: number;
+  code: string;
+}
+
+interface OfficialStop {
+  source_id: number;
+  source_code: string;
+  name: string;
+  sequence: number;
+  lat: number;
+  lng: number;
+}
+
+interface Direction {
+  id: number;
+  label: string;
+  shape: { lat: number; lng: number }[];
+  stops: OfficialStop[];
+}
+
+interface OfficialRouteDetail {
+  source_id: number;
+  code: string;
+  carrier: string;
+  first_stop: string;
+  last_stop: string;
+  length_km: number;
+  tariff_label: string;
+  directions: Direction[];
+}
 
 export default function JourneyPlanner({ transit }: { transit: Transit }) {
+  // Navigation tab: 'journey' (Haradan - Haraya) or 'findRoute' (Avtobus xətti axtarışı)
+  const [activeTab, setActiveTab] = useState<"journey" | "findRoute">("journey");
+
+  // Journey state
   const [origin, setOrigin] = useState<Place | null>(null);
   const [destination, setDestination] = useState<Place | null>(null);
   const [mode, setMode] = useState<"official" | "demo">("official");
@@ -51,9 +91,21 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
   const [tracking, setTracking] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [reportMessage, setReportMessage] = useState("");
+
+  // Find Route state
+  const [routeQuery, setRouteQuery] = useState("");
+  const [catalog, setCatalog] = useState<CatalogRoute[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  const [routeDetail, setRouteDetail] = useState<OfficialRouteDetail | null>(null);
+  const [directionIndex, setDirectionIndex] = useState(0);
+  const [selectedStopSeq, setSelectedStopSeq] = useState<number | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState("");
+
   const watch = useRef<number | null>(null);
   const searchController = useRef<AbortController | null>(null);
   const menu = useRef<HTMLDialogElement>(null);
+
   const stops =
     mode === "demo" ? Object.values(transit.stops).flat() : transit.catalog;
   const currentVehicle = vehicles.find(
@@ -62,6 +114,78 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
   const freshVehicles = vehicles.filter(
     (vehicle) => tick - utcDate(vehicle.ts).getTime() <= 30000,
   );
+
+  // Fetch routes catalog for Find Route tab
+  useEffect(() => {
+    let active = true;
+    api<{ routes: CatalogRoute[] }>("/official/routes")
+      .then((data) => {
+        if (!active) return;
+        setCatalog(data.routes || []);
+        if (data.routes && data.routes.length > 0 && selectedRouteId === null) {
+          // Preselect route 62 or first route
+          const initial = data.routes.find((r) => r.code === "62") || data.routes[0];
+          setSelectedRouteId(initial.source_id);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch route details when a route is selected in Find Route tab
+  useEffect(() => {
+    if (!selectedRouteId) return;
+    let active = true;
+    setRouteLoading(true);
+    setRouteError("");
+    setSelectedStopSeq(null);
+
+    api<OfficialRouteDetail>(`/official/routes/${selectedRouteId}`)
+      .then((data) => {
+        if (!active) return;
+        setRouteDetail(data);
+        setDirectionIndex(0);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setRouteError(err instanceof Error ? err.message : "Xətt məlumatı yüklənmədi.");
+      })
+      .finally(() => {
+        if (active) setRouteLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedRouteId]);
+
+  // Filtered routes based on search query
+  const filteredCatalog = useMemo(() => {
+    const q = routeQuery.trim().toLocaleLowerCase("az");
+    if (!q) return catalog.slice(0, 24);
+    return catalog.filter((r) => r.code.toLocaleLowerCase("az").includes(q));
+  }, [catalog, routeQuery]);
+
+  // Active direction in route view
+  const activeDirection = useMemo(() => {
+    if (!routeDetail || !routeDetail.directions.length) return null;
+    return routeDetail.directions[directionIndex] || routeDetail.directions[0];
+  }, [routeDetail, directionIndex]);
+
+  // Format data for JourneyMap in route view mode
+  const currentRouteView = useMemo<RouteViewData | null>(() => {
+    if (activeTab !== "findRoute" || !routeDetail || !activeDirection) return null;
+    return {
+      code: routeDetail.code,
+      carrier: routeDetail.carrier,
+      color: "#ff385c",
+      shape: activeDirection.shape,
+      stops: activeDirection.stops,
+    };
+  }, [activeTab, routeDetail, activeDirection]);
+
   function clearSearch() {
     searchController.current?.abort();
     setSearching(false);
@@ -71,21 +195,25 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
     setVehicles([]);
     setError("");
   }
+
   function changeOrigin(place: Place | null) {
     stopLocation();
     setOrigin(place);
     clearSearch();
   }
+
   function changeDestination(place: Place | null) {
     setDestination(place);
     clearSearch();
   }
+
   function stopLocation() {
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
     watch.current = null;
     setTracking(false);
     setLocating(false);
   }
+
   function locate() {
     if (tracking) {
       stopLocation();
@@ -113,7 +241,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
       (failure) => {
         setLocationError(
           failure.code === 1
-            ? "Məkan icazəsi verilmədi. Dayanacağı əl ilə seçə bilərsiniz."
+            ? "Məkan icazəsi verilmədi. Ünvanı daxil edə bilərsiniz."
             : failure.code === 3
               ? "Məkan sorğusunun vaxtı bitdi. Yenidən cəhd edin."
               : "Məkan müəyyən edilmədi. GPS və bağlantını yoxlayın.",
@@ -123,6 +251,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 },
     );
   }
+
   useEffect(
     () => () => {
       if (watch.current !== null)
@@ -131,10 +260,13 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
     },
     [],
   );
+
   useEffect(() => {
     const timer = setInterval(() => setTick(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch live vehicle GPS fixes for selected journey
   useEffect(() => {
     setVehicles([]);
     setVehicleId("");
@@ -183,14 +315,16 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
       clearInterval(timer);
     };
   }, [selected]);
+
+  // Search journeys between origin and destination
   async function search(event?: FormEvent) {
     event?.preventDefault();
     if (!origin || !destination) {
-      setError("Başlanğıc və təyinat dayanacağını siyahıdan seçin.");
+      setError("Başlanğıc və təyinat ünvanını daxil edin.");
       return;
     }
     if (origin.lat === destination.lat && origin.lng === destination.lng) {
-      setError("Başlanğıc və təyinat eyni ola bilməz. Fərqli dayanacaq seçin.");
+      setError("Başlanğıc və təyinat eyni ola bilməz. Fərqli nöqtə seçin.");
       return;
     }
     clearSearch();
@@ -209,12 +343,15 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
-      const refined = mode === "official" ? await refineWalking(data.journeys, walkingLimit, controller.signal) : data.journeys;
-      if (controller.signal.aborted) return;
+      const refined=mode==='official'?await refineWalking(data.journeys,walkingLimit,controller.signal):data.journeys;
+      if(controller.signal.aborted)return;
       setJourneys(refined);
       setPartial(data.partial);
       setStale(data.stale);
       setSearched(true);
+      if (refined.length > 0) {
+        setSelected(refined[0]);
+      }
     } catch (err) {
       if (!controller.signal.aborted)
         setError(
@@ -224,6 +361,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
       if (!controller.signal.aborted) setSearching(false);
     }
   }
+
   function switchMode() {
     stopLocation();
     clearSearch();
@@ -237,6 +375,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
       setDestination(path[9] || null);
     }
   }
+
   async function report(level: number) {
     if (mode !== "demo" || !selected || !currentVehicle) return;
     try {
@@ -254,443 +393,518 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
       setReportMessage("Hesabat göndərilmədi. Yenidən cəhd edin.");
     }
   }
+
   return (
     <div className="passenger-app journey-planner">
       <a className="p-skip" href="#journey-content">
         Əsas məzmuna keç
       </a>
       <header className="p-header">
-        <a className="p-brand" href="#passenger" aria-label="IDDA ana səhifə">
-          <Route size={34} />
-          <span>
-            idda<span>.</span>
-          </span>
+        <a className="p-brand" href="#passenger" aria-label="BakuPort ana səhifə" style={{ textDecoration: "none" }}>
+          <BakuPortLogo size={32} />
         </a>
-        <nav className="p-product-nav" aria-label="Sərnişin naviqasiyası">
-          <a className="active" href="#passenger" aria-current="page">
-            <BusFront size={26} />
-            Səfərini tap
-          </a>
-        </nav>
-        <div className="p-header-tools">
-          <span className="p-city">Bakı, Azərbaycan</span>
+
+        {/* Global tab buttons: Haradan-Haraya vs Xətt Axtar */}
+        <div className="j-tabs-wrapper" style={{ margin: 0 }}>
+          <div className="j-tabs-nav">
+            <button
+              type="button"
+              className={`j-tab-trigger ${activeTab === "journey" ? "active" : ""}`}
+              onClick={() => setActiveTab("journey")}
+            >
+              <Navigation size={16} />
+              <span>Haradan – Haraya</span>
+            </button>
+            <button
+              type="button"
+              className={`j-tab-trigger ${activeTab === "findRoute" ? "active" : ""}`}
+              onClick={() => setActiveTab("findRoute")}
+            >
+              <BusFront size={16} />
+              <span>Avtobus Xətti Tap</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-header-right">
           <button
-            className="p-menu-button"
-            aria-label="Menyunu aç"
-            aria-haspopup="dialog"
+            type="button"
+            className="p-icon-button"
             onClick={() => menu.current?.showModal()}
+            aria-label="Əsas menyu"
           >
             <Menu size={20} />
           </button>
         </div>
       </header>
-      <main className="p-content" id="journey-content">
-        {!backendConfigured && <p className="j-banner error" role="status">{backendUnavailableMessage}</p>}
-        <div className="j-intro">
-          <span className="j-eyebrow">
-            <Navigation size={14} />
-            BAKI ÜÇÜN BİRLİKDƏ
-          </span>
-          <h1>Haradan, haraya?</h1>
-          <p>Gedəcəyin yeri seç. Sənə uyğun avtobusu tap.</p>
-        </div>
-        <form className="j-search" onSubmit={(event) => void search(event)}>
-          <PlacePicker
-            label="Haradan"
-            value={origin}
-            onChange={changeOrigin}
-            stops={stops}
-            loading={transit.loading}
-          />
-          <button
-            type="button"
-            className="j-swap"
-            aria-label="Başlanğıc və təyinatı dəyiş"
-            onClick={() => {
-              stopLocation();
-              setOrigin(destination);
-              setDestination(origin);
-              clearSearch();
-            }}
-          >
-            <ArrowDownUp size={20} />
-          </button>
-          <PlacePicker
-            label="Haraya"
-            value={destination}
-            onChange={changeDestination}
-            stops={stops}
-            loading={transit.loading}
-          />
-          <button
-            className="j-find"
-            type="submit"
-            disabled={searching || !origin || !destination}
-          >
-            <Search size={20} />
-            {searching ? "Axtarılır…" : "Avtobus tap"}
-            <ArrowRight size={18} />
-          </button>
-        </form>
-        <fieldset className="j-walking-limit"><legend>Hər tərəfdə nə qədər piyada gedə bilərsiniz?</legend><div>{[400,800,1200,1500].map(meters=><button key={meters} type="button" aria-pressed={walkingLimit===meters} onClick={()=>{setWalkingLimit(meters);clearSearch();}}>{meters<1000?`${meters} m`:`${meters/1000} km`}</button>)}</div><p>Piyada məsafələri düz xətt üzrə təxmindir; keçidlər və maneələrə görə real yol uzana bilər.</p></fieldset>
-        <div className="j-search-tools">
-          <button
-            className={tracking ? "tracking" : ""}
-            onClick={locate}
-            disabled={locating}
-          >
-            <LocateFixed size={17} />
-            {locating
-              ? "Məkan alınır…"
-              : tracking
-                ? "Canlı məkan aktivdir · dayandır"
-                : "Məkanımı istifadə et"}
-          </button>
-          <button onClick={switchMode}>
-            {mode === "official"
-              ? "Demo səfərini yoxla"
-              : "Rəsmi məlumatlara qayıt"}
-            <ChevronRight size={15} />
-          </button>
-        </div>
-        {locationError && (
-          <p className="j-error" role="alert">
-            {locationError}
-          </p>
-        )}
-        {error && (
-          <p className="j-error" role="alert">
-            {error}
-          </p>
-        )}
-        {transit.error && (
-          <p className="j-error" role="alert">
-            Dayanacaqlar yüklənmədi.{" "}
-            <button onClick={() => void transit.refresh()}>
-              Yenidən yoxla
+
+      <dialog ref={menu} className="p-dialog" aria-labelledby="menu-title">
+        <div className="p-dialog-content">
+          <div className="p-dialog-header">
+            <h2 id="menu-title">İdarəetmə paneli</h2>
+            <button
+              type="button"
+              className="p-icon-button"
+              onClick={() => menu.current?.close()}
+              aria-label="Menyunu bağla"
+            >
+              <X size={20} />
             </button>
-          </p>
-        )}
-        <div className={`j-workspace j-journey-centered ${!searched ? "awaiting-search" : ""}`}>
-          <section className="j-results" aria-label="Uyğun avtobuslar">
-            <div className="j-section-heading">
-              <h2>
-                {searching
-                  ? "Uyğun avtobusları axtarırıq"
-                  : searched
-                    ? `${journeys.length} uyğun səfər`
-                    : "Yolun buradan başlayır"}
-              </h2>
-              <span>
-                {mode === "demo" ? "Simulator" : "AYNA · rəsmi xətlər"}
-              </span>
+          </div>
+          <div className="p-dialog-body">
+            <div className="p-menu-group">
+              <a href="#routes" className="p-menu-link">
+                Marşrut Kataloqu
+                <ArrowRight size={18} />
+              </a>
             </div>
-            {searching ? (
-              <div className="j-state" role="status">
-                <span className="j-spinner" />
-                <strong>Dayanacaqlar və istiqamətlər yoxlanılır…</strong>
+            <div className="p-menu-mode">
+              <div>
+                <strong>Məlumat rejimi:</strong>
                 <p>
-                  İlk sorğu rəsmi mənbədən asılı olaraq bir qədər çəkə bilər.
+                  {mode === "official"
+                    ? "AYNA rəsmi Bakı marşrutları və koordinatları"
+                    : "Simulyasiya edilmiş demo avtobusları və canlı sıxlıq"}
                 </p>
               </div>
-            ) : !searched ? (
-              <div className="j-state">
-                <span className="j-state-icon">
-                  <MapPin size={28} />
-                </span>
-                <h3>İki nöqtə. Daha rahat səfər.</h3>
-                <p>
-                  Başlanğıcı və gedəcəyin dayanacağı seç, sonra “Avtobus tap”
-                  düyməsinə toxun.
-                </p>
-                <div className="j-steps">
-                  <span>
-                    <Check size={15} />
-                    Uyğun avtobus
-                  </span>
-                  <span>
-                    <Check size={15} />
-                    Minmə və enmə dayanacağı
-                  </span>
-                  <span>
-                    <Check size={15} />
-                    Seçdiyin avtobusun yolu
-                  </span>
-                </div>
+              <button
+                type="button"
+                className="p-button p-button-secondary"
+                onClick={() => {
+                  switchMode();
+                  menu.current?.close();
+                }}
+              >
+                {mode === "official" ? "Demo rejiminə keç" : "Rəsmi rejimə keç"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </dialog>
+
+      <main id="journey-content" className="p-main">
+        {!backendConfigured&&<p className="j-banner error" role="status">{backendUnavailableMessage}</p>}
+        {/* ================= TAB 1: HARADAN - HARAYA (JOURNEY PLANNER) ================= */}
+        {activeTab === "journey" && (
+          <section className="j-hero-section">
+            <div className="j-intro">
+              <div className="j-eyebrow">
+                <Compass size={14} />
+                <span>BAKUPORT · BAKI ŞƏHƏR İCTİMAİ NƏQLİYYAT ŞƏBƏKƏSİ</span>
               </div>
-            ) : !journeys.length ? (
-              <div className="j-state">
-                <Search size={30} />
-                <h3>Birbaşa avtobus tapılmadı</h3>
-                <p>
-                  800 metrədək yaxın dayanacaqlar yoxlanıldı. Daha yaxın
-                  dayanacaq seçin. Dəyişməli səfərlər hələ dəstəklənmir.
-                </p>
-              </div>
-            ) : (
-              <div className="j-result-list">
-                {journeys.map((journey) => (
-                  <button
-                    className={`j-result ${selected?.key === journey.key ? "selected" : ""}`}
-                    aria-pressed={selected?.key === journey.key}
-                    key={journey.key}
-                    onClick={() => {
-                      setSelected(journey);
-                      if (innerWidth < 744)
-                        document.getElementById("journey-map")?.scrollIntoView({
-                          behavior: matchMedia(
-                            "(prefers-reduced-motion: reduce)",
-                          ).matches
-                            ? "auto"
-                            : "smooth",
-                        });
-                    }}
-                  >
-                    <div className="j-result-top">
-                      <span className="j-route-number">
-                        <BusFront size={22} />
-                        {journey.mode === "demo"
-                          ? journey.code
-                          : `№ ${journey.code}`}
-                      </span>
-                      <span className="j-plan-time">
-                        ~{journey.planned_minutes} dəq
-                        <small>gözləmə xaric</small>
-                      </span>
-                    </div>
-                    <strong>
-                      {journey.board.name}
-                      <ArrowRight size={14} />
-                      {journey.alight.name}
-                    </strong>
-                    <div className="j-trip-timeline"><p>{journey.walk_to_m} m piyada → {journey.board.name}</p><p>{journey.code} avtobusu → {journey.alight.name}</p><p>{journey.walk_from_m} m piyada → təyinat</p></div><p className="j-search-disclosure">{journey.walking_status==='provider'?'Piyada yolu: Google Routes':'Piyada yolu: düz xətt təxmini'} · {journey.ride_time_basis==='published_route_duration_scaled'?'Avtobus vaxtı: mənbənin ümumi müddətindən təxmini':'Avtobus vaxtı: 18 km/saat fərziyyəsi'} · gözləmə daxil deyil.</p>
-                        {journey.fetched_at&&<p className="j-search-disclosure">AYNA məlumatı: {utcDate(journey.fetched_at).toLocaleDateString('az-AZ')}{journey.stale?' · saxlanmış nüsxə':''}</p>}
-                        {journey.walking_warnings?.map((warning,index)=><p key={index} className="j-search-disclosure">{warning.replace(/<[^>]*>/g,'')}</p>)}<div className="j-result-meta">
-                      <span>
-                        <Footprints size={15} />
-                        {journey.walk_to_m + journey.walk_from_m} m
-                      </span>
-                      <span>{journey.stop_count} dayanacaq</span>
-                      <span>{journey.tariff_label}</span>
-                    </div>
-                    <span className="j-result-link">
-                      {selected?.key === journey.key
-                        ? "Yol xəritədə göstərilir"
-                        : "Bu avtobusu seç"}
-                      <ChevronRight size={16} />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {(partial || stale) && searched && (
-              <p className="j-note">
-                {partial
-                  ? "Axtarış ən yaxın 4 dayanacaqla məhdudlaşıb; bütün mümkün səfərləri əhatə etməyə bilər. "
-                  : ""}
-                {stale
-                  ? "Mənbə əlçatan deyil, saxlanmış məlumat istifadə olunur."
-                  : ""}
+              <h1>Hara getmək istəyirsiniz?</h1>
+              <p>
+                Başlanğıcı və gedəcəyiniz yeri seçin. Yaxın dayanacağa piyada yol, uyğun avtobus və enəndən sonra təyinata piyada məsafə birlikdə hesablanacaq.
               </p>
-            )}
-            <p className="j-method">
-              <ShieldCheck size={15} />
-              {mode === "official"
-                ? "Rəsmi yol sxemi · birbaşa səfərlər"
-                : "Demo yollar və simulyasiya edilmiş GPS"}
-            </p>
-          </section>
-          <section
-            className="j-map-column"
-            id="journey-map"
-            aria-label="Seçilmiş səfərin xəritəsi"
-          >
-            <div className="j-map-card">
-              <div className="j-map-heading">
-                <span>
-                  <MapPin size={16} />
-                  {selected
-                    ? `${selected.code} · ${selected.direction_label}`
-                    : "Səfərin xəritəsi"}
-                </span>
-                <span>{tracking ? "Canlı məkan" : "Google Maps"}</span>
-              </div>
-              <JourneyMap
-                journey={selected}
-                user={tracking ? user : null}
-                origin={origin}
-                destination={destination}
-                vehicles={freshVehicles}
-                selectedVehicle={vehicleId}
-                horizon={horizon}
-                onVehicle={setVehicleId}
-              />
-              <div className="j-map-foot">
-                <span>
-                  <i />
-                  Seçilmiş avtobusun yolu
-                </span>
-                {selected && (
-                  <span>
-                    {selected.stop_count} dayanacaq · {selected.carrier}
-                  </span>
-                )}
-              </div>
             </div>
-            {selected && (
-              <section className="j-live">
-                <div className="j-section-heading">
-                  <h2>Avtobus nə vaxt gəlir?</h2>
-                  <span>{mode === "demo" ? "Demo GPS" : "GPS məlumatı"}</span>
-                </div>
-                {gpsError ? (
-                  <p role="alert" className="j-error">
-                    {gpsError}
-                  </p>
-                ) : gpsLoading ? (
-                  <p role="status">GPS məlumatı yüklənir…</p>
-                ) : freshVehicles.length ? (
-                  <>
-                    <div className="j-vehicle-list">
-                      {freshVehicles.map((vehicle) => (
-                        <button
-                          key={vehicle.vehicle_id}
-                          className={
-                            vehicle.vehicle_id === vehicleId ? "active" : ""
-                          }
-                          aria-pressed={vehicle.vehicle_id === vehicleId}
-                          onClick={() => setVehicleId(vehicle.vehicle_id)}
-                        >
-                          <BusFront size={24} />
-                          <span>
-                            <strong>{vehicle.label}</strong>
-                            <small>
-                              {Math.max(
-                                0,
-                                Math.floor(
-                                  (tick - utcDate(vehicle.ts).getTime()) / 1000,
-                                ),
-                              )}{" "}
-                              san əvvəl · {vehicle.speed_kmh} km/saat
-                            </small>
-                          </span>
-                          <b>
-                            {Math.ceil(vehicle.eta_minutes)}
-                            <small>dəq</small>
-                          </b>
-                        </button>
-                      ))}
-                    </div>
-                    {currentVehicle &&
-                      freshVehicles.some(
-                        (v) => v.vehicle_id === currentVehicle.vehicle_id,
-                      ) && (
-                        <>
-                          <p className="j-destination-time">
-                            <Clock3 size={16} />
-                            Enəcəyin dayanacaqda təxminən{" "}
-                            {Math.ceil(currentVehicle.destination_minutes)}{" "}
-                            dəqiqə sonra.
-                          </p>
-                          <div
-                            className="j-predictions"
-                            aria-label="Avtobusun təxmini gələcək mövqeyi"
-                          >
-                            {[0, 5, 10, 15].map((minute) => (
-                              <button
-                                key={minute}
-                                aria-pressed={horizon === minute}
-                                onClick={() => setHorizon(minute)}
-                              >
-                                {minute ? `+${minute} dəq` : "İndi"}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="j-note">
-                            Gələcək mövqelər son 5 dəqiqənin sürətinə əsaslanan
-                            təxmindir. Tıxac və dayanma vaxtı dəyişə bilər.
-                          </p>
-                          {mode === "demo" && (
-                            <div className="j-crowd">
-                              <span>
-                                <Users size={16} />
-                                Sıxlığı bildir
-                              </span>
-                              {[
-                                { level: 1, text: "Boş" },
-                                { level: 3, text: "Orta" },
-                                { level: 5, text: "Dolu" },
-                              ].map((item) => (
-                                <button
-                                  key={item.level}
-                                  onClick={() => void report(item.level)}
-                                >
-                                  {item.text}
-                                </button>
-                              ))}
-                              <p role="status">{reportMessage}</p>
-                            </div>
-                          )}
-                        </>
-                      )}
-                  </>
-                ) : (
-                  <div className="j-no-gps">
-                    <Clock3 size={24} />
-                    <div>
-                      <h3>Canlı avtobus mövqeyi yoxdur</h3>
-                      <p>
-                        {mode === "official"
-                          ? "Bu xəttə canlı GPS mənbəyi qoşulmayıb. Yol sxemi rəsmi məlumatdır; plan vaxtına gözləmə daxil deyil."
-                          : "Minəcəyin dayanacağa yaxınlaşan təzə GPS-li avtobus görünmür. Başqa dayanacaq seç və ya bir qədər gözlə."}
-                      </p>
-                    </div>
+
+            <form className="j-search" onSubmit={search}>
+              <PlacePicker
+                label="Haradan"
+                placeholder="Başlanğıc: məkan, metro, ünvan və ya dayanacaq..."
+                value={origin}
+                onChange={changeOrigin}
+                stops={stops}
+              />
+
+              <button
+                type="button"
+                className="j-swap"
+                title="Başlanğıc və təyinat yerini dəyiş"
+                onClick={() => {
+                  const temp = origin;
+                  changeOrigin(destination);
+                  changeDestination(temp);
+                }}
+              >
+                <ArrowDownUp size={18} />
+              </button>
+
+              <PlacePicker
+                label="Haraya"
+                placeholder="Təyinat: məkan, ticarət mərkəzi, küçə..."
+                value={destination}
+                onChange={changeDestination}
+                stops={stops}
+              />
+
+              <div className="j-actions">
+                <button
+                  type="button"
+                  className={`j-locate-btn ${tracking ? "active" : ""}`}
+                  onClick={locate}
+                  title="Cari yerləşdiyim məkanı seç"
+                >
+                  <LocateFixed size={20} />
+                  <span>{locating ? "Müəyyən edilir..." : tracking ? "Canlı GPS" : "Cari məkan"}</span>
+                </button>
+
+                <button
+                  type="submit"
+                  className="j-find-btn"
+                  disabled={searching || !origin || !destination}
+                >
+                  {searching ? (
+                    <span className="j-place-spin" />
+                  ) : (
+                    <Search size={18} />
+                  )}
+                  <span>Marşrut Axtar</span>
+                </button>
+              </div>
+            </form>
+            <fieldset className="j-walking-limit"><legend>Hər tərəfdə nə qədər piyada gedə bilərsiniz?</legend><div>{[400,800,1200,1500].map(meters=><button key={meters} type="button" aria-pressed={walkingLimit===meters} onClick={()=>{setWalkingLimit(meters);clearSearch();}}>{meters<1000?`${meters} m`:`${meters/1000} km`}</button>)}</div><p>Piyada məsafələri düz xətt üzrə təxmindir; keçidlər və maneələrə görə real yol uzana bilər.</p></fieldset>
+
+            {locationError && (
+              <div className="j-banner error" role="alert">
+                {locationError}
+              </div>
+            )}
+            {error && (
+              <div className="j-banner error" role="alert">
+                {error}
+              </div>
+            )}
+
+            {/* Results layout */}
+            <div className={`j-grid-layout j-journey-centered ${!searched ? 'awaiting-search' : ''}`}>
+              {/* Left results column */}
+              <div className="j-results-col">
+                {searched && (
+                  <div className="j-results-header">
+                    <h2>Uyğun Avtobus Seçimləri ({journeys.length})</h2>
+                    <span className="j-results-badge">
+                      {mode === "official" ? "Rəsmi AYNA xətləri" : "Demo xətləri"}
+                    </span>
                   </div>
                 )}
-              </section>
+
+                {searched && journeys.length === 0 && (
+                  <div className="j-empty-state">
+                    <BusFront size={42} />
+                    <h3>Uyğun piyada + avtobus səfəri tapılmadı</h3>
+                    <p>
+                      Hər tərəfdə {walkingLimit} metrədək piyada yol nəzərə alındı. Piyada həddini artırın və ya başqa məkan seçin. Avtobuslar arasında dəyişmə bu axtarışa daxil deyil.
+                    </p>
+                  </div>
+                )}
+
+                <div className="j-result-list">
+                  {journeys.map((item) => {
+                    const isSelected = selected?.key === item.key;
+                    const walkToMin = Math.ceil(item.walk_to_minutes ?? item.walk_to_m / 75);
+                    const walkFromMin = Math.ceil(item.walk_from_minutes ?? item.walk_from_m / 75);
+
+                    return (
+                      <div
+                        key={item.key}
+                        className={`j-card ${isSelected ? "selected" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setSelected(item);}}}
+                        onClick={() => setSelected(item)}
+                      >
+                        <div className="j-card-top">
+                          <div className="j-route-pill">
+                            <BusFront size={18} />
+                            <span>{item.code} nömrəli</span>
+                          </div>
+                          <div className="j-trip-time">
+                            <Clock3 size={15} />
+                            <strong>~{item.planned_minutes} dəqiqə</strong>
+                          </div>
+                          <small className="j-wait-note">Piyada + avtobus · gözləmə xaric</small>
+                          <div className="j-fare-tag">
+                            {item.tariff_label || "Tarif məlum deyil"}
+                          </div>
+                        </div>
+
+                        <div className="j-carrier-info">
+                          <span>Daşıyıcı: <strong>{item.carrier}</strong></span>
+                          <span>•</span>
+                          <span>{item.direction_label}</span>
+                        </div>
+                        <p className="j-search-disclosure">{item.walking_status==='provider'?'Piyada yolu: Google Routes':'Piyada yolu: düz xətt təxmini'} · {item.ride_time_basis==='published_route_duration_scaled'?'Avtobus vaxtı: mənbənin ümumi müddətindən təxmini':'Avtobus vaxtı: 18 km/saat fərziyyəsi'} · gözləmə daxil deyil.</p>
+                        {item.fetched_at&&<p className="j-search-disclosure">AYNA məlumatı: {utcDate(item.fetched_at).toLocaleDateString('az-AZ')}{item.stale?' · saxlanmış nüsxə':''}</p>}
+                        {item.walking_warnings?.map((warning,index)=><p key={index} className="j-search-disclosure">{warning.replace(/<[^>]*>/g,'')}</p>)}
+
+                        {/* Walking and transit breakdown */}
+                        <div className="j-trip-timeline">
+                          <div className="j-timeline-item">
+                            <div className="j-timeline-icon walk">
+                              <Footprints size={14} />
+                            </div>
+                            <div>
+                              <span><strong>{item.walk_to_m} m ({walkToMin} dəq)</strong> piyada</span>
+                              <div style={{ color: "var(--p-muted)", fontSize: "12px" }}>
+                                ➔ <strong>{item.board.name}</strong> dayanacağına
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="j-timeline-item">
+                            <div className="j-timeline-icon bus">
+                              <BusFront size={14} />
+                            </div>
+                            <div>
+                              <span><strong>{item.code} nömrəli avtobus</strong> ({item.stop_count} dayanacaq • {item.ride_minutes} dəq)</span>
+                              <div style={{ color: "var(--p-muted)", fontSize: "12px" }}>
+                                {item.board.name} ➔ {item.alight.name}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="j-timeline-item">
+                            <div className="j-timeline-icon walk">
+                              <Footprints size={14} />
+                            </div>
+                            <div>
+                              <span><strong>{item.walk_from_m} m ({walkFromMin} dəq)</strong> piyada</span>
+                              <div style={{ color: "var(--p-muted)", fontSize: "12px" }}>
+                                ➔ Təyinat məntəqəsinə
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {searched && (partial || stale) && <p className="j-search-disclosure">{partial?'Məhdud və ya natamam mənbə məlumatı səbəbindən bütün mümkün səfərlər göstərilməyə bilər. ':''}{stale?'Saxlanmış mənbə nüsxəsi istifadə olunur.':''}</p>}
+              </div>
+
+              {/* Right interactive map column */}
+              <div className="j-map-col">
+                <div className="j-map-card">
+                  <JourneyMap
+                    journey={selected}
+                    user={user}
+                    origin={origin}
+                    destination={destination}
+                    vehicles={freshVehicles}
+                    selectedVehicle={vehicleId}
+                    horizon={horizon}
+                    onVehicle={setVehicleId}
+                  />
+                  {selected && (
+                    <div className="j-map-legend">
+                      <div className="legend-item">
+                        <span className="legend-dot walk" /> Piyada gəzinti (kəsik xətt)
+                      </div>
+                      <div className="legend-item">
+                        <span className="legend-dot bus" /> Avtobus xətti ({selected.code})
+                      </div>
+                      <div className="legend-item">
+                        <span className="legend-dot start" /> Minik: {selected.board.name}
+                      </div>
+                      <div className="legend-item">
+                        <span className="legend-dot end" /> Düşmə: {selected.alight.name}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ================= TAB 2: AVTOBUS XƏTTİ AXTAR (FIND ROUTE) ================= */}
+        {activeTab === "findRoute" && (
+          <section className="find-route-section">
+            <div className="j-intro">
+              <div className="j-eyebrow">
+                <BusFront size={14} />
+                <span>RƏSMİ AVTOBUS MARŞRUTLARI VƏ DAYANACAQLAR</span>
+              </div>
+              <h1>Avtobus xəttini tapın</h1>
+              <p>
+                İstədiyiniz avtobusun nömrəsini daxil edin. İnteraktiv xəritədə həmin xəttin bütün trayektoriyası, dayanacaqları və istiqamətləri əks olunacaq.
+              </p>
+            </div>
+
+            <div className="route-finder-box">
+              <div className="route-search-bar">
+                <Search size={20} color="var(--p-muted)" />
+                <input
+                  type="text"
+                  placeholder="Avtobusun nömrəsini daxil edin (məs: 62, 1, 14, 175, 88...)"
+                  value={routeQuery}
+                  onChange={(e) => setRouteQuery(e.target.value)}
+                />
+                {routeQuery && (
+                  <button
+                    type="button"
+                    style={{ border: "none", background: "transparent", cursor: "pointer" }}
+                    onClick={() => setRouteQuery("")}
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Popular route quick chips */}
+              <div className="route-chips">
+                <span style={{ fontSize: "13px", color: "var(--p-muted)", alignSelf: "center", marginRight: "4px" }}>
+                  Tez seçim:
+                </span>
+                {["1", "62", "14", "175", "88", "M8", "5", "18", "24", "133"].map((code) => {
+                  const match = catalog.find((r) => r.code === code);
+                  if (!match) return null;
+                  const isCur = selectedRouteId === match.source_id;
+                  return (
+                    <button
+                      key={match.source_id}
+                      type="button"
+                      className={`route-chip-btn ${isCur ? "active" : ""}`}
+                      onClick={() => setSelectedRouteId(match.source_id)}
+                    >
+                      <BusFront size={14} />
+                      № {match.code}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* If query has matches, display matched buttons */}
+              {routeQuery && (
+                <div style={{ marginTop: "12px" }}>
+                  <div style={{ fontSize: "12px", color: "var(--p-muted)", marginBottom: "6px" }}>
+                    Axtarışa uyğun xətlər ({filteredCatalog.length}):
+                  </div>
+                  <div className="route-chips">
+                    {filteredCatalog.map((r) => (
+                      <button
+                        key={r.source_id}
+                        type="button"
+                        className={`route-chip-btn ${selectedRouteId === r.source_id ? "active" : ""}`}
+                        onClick={() => setSelectedRouteId(r.source_id)}
+                      >
+                        № {r.code}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Route details banner */}
+              {routeDetail && (
+                <div className="route-info-card">
+                  <div className="route-header-flex">
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span className="route-number-badge">{routeDetail.code}</span>
+                      <div>
+                        <strong style={{ fontSize: "17px", color: "var(--p-ink)" }}>
+                          {activeDirection?.label || `${routeDetail.first_stop} ➔ ${routeDetail.last_stop}`}
+                        </strong>
+                        <div className="route-carrier-tag">
+                          Daşıyıcı: <strong>{routeDetail.carrier}</strong> • Tarif: <strong>{routeDetail.tariff_label || "Tarif məlum deyil"}</strong> • Uzunluq: <strong>{routeDetail.length_km} km</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Direction toggle button */}
+                    {routeDetail.directions.length > 1 && (
+                      <button
+                        type="button"
+                        className="direction-toggle-btn"
+                        onClick={() => setDirectionIndex((prev) => (prev === 0 ? 1 : 0))}
+                      >
+                        <ArrowLeftRight size={16} />
+                        <span>İstiqaməti dəyiş ({directionIndex === 0 ? "Əks istiqamətə" : "Düz istiqamətə"})</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {routeLoading && (
+              <div style={{ textAlign: "center", padding: "20px", color: "var(--p-muted)" }}>
+                Xətt məlumatları və xəritə koordinatları yüklənir...
+              </div>
+            )}
+            {routeError && (
+              <div className="j-banner error" role="alert">
+                {routeError}
+              </div>
+            )}
+
+            {/* Split view: Route Map & Stops List */}
+            {routeDetail && activeDirection && (
+              <div className="j-grid-layout">
+                {/* Left: Stops list */}
+                <div className="j-results-col">
+                  <div className="j-results-header">
+                    <h2>Dayanacaqlar Siyahısı ({activeDirection.stops.length})</h2>
+                    <span style={{ fontSize: "12px", color: "var(--p-muted)" }}>
+                      Dayanacağa basaraq xəritədə görün
+                    </span>
+                  </div>
+
+                  <div className="route-stops-container">
+                    {activeDirection.stops.map((stop) => {
+                      const isSelected = stop.sequence === selectedStopSeq;
+                      return (
+                        <div
+                          key={`${stop.source_id}-${stop.sequence}`}
+                          className={`route-stop-row ${isSelected ? "selected" : ""}`}
+                          onClick={() => setSelectedStopSeq(stop.sequence)}
+                        >
+                          <span className="stop-seq-num">{stop.sequence}</span>
+                          <span className="stop-row-name">{stop.name}</span>
+                          <ChevronRight size={16} color="var(--p-muted)" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Right: Map with route polyline and all stops */}
+                <div className="j-map-col">
+                  <div className="j-map-card">
+                    <JourneyMap
+                      journey={null}
+                      user={user}
+                      origin={null}
+                      destination={null}
+                      vehicles={[]}
+                      selectedVehicle=""
+                      horizon={0}
+                      onVehicle={() => {}}
+                      routeView={currentRouteView}
+                      selectedStopSequence={selectedStopSeq}
+                      onSelectStop={(seq) => setSelectedStopSeq(seq)}
+                    />
+                    <div className="j-map-legend">
+                      <div className="legend-item">
+                        <span className="legend-dot bus" /> {routeDetail.code} nömrəli marşrut xətti
+                      </div>
+                      <div className="legend-item">
+                        <span className="legend-dot start" /> {activeDirection.stops.length} rəsmi dayanacaq
+                      </div>
+                      {selectedStopSeq && (
+                        <div className="legend-item" style={{ color: "#ff385c", fontWeight: 600 }}>
+                          Seçilmiş: #{selectedStopSeq} {activeDirection.stops.find((s) => s.sequence === selectedStopSeq)?.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </section>
-        </div>
-        <p className="j-disclaimer">
-          Piyada məsafələri düz xətt üzrə, plan vaxtı 18 km/saat əsasında
-          hesablanır. Piyada yolun əlçatanlığı və avtobusun gözləmə vaxtı bu
-          hesablamaya daxil deyil.
-        </p>
+        )}
+
+        {/* Real-time Passenger Crowd Reporting with 2-minute cooldown */}
+        <CrowdReportCard defaultRouteCode={routeDetail?.code || selected?.code || ""} />
       </main>
+
       <footer className="p-footer">
-        <a className="p-footer-brand" href="#passenger">
-          idda.
-        </a>
-        <span>© {new Date().getFullYear()} IDDA · Bakı üçün birlikdə.</span>
-        <a href="https://map.ayna.gov.az/" target="_blank" rel="noreferrer">
-          AYNA · məlumat mənbəyi
-        </a>
-      </footer>
-      <dialog
-        className="p-dialog p-menu-dialog"
-        ref={menu}
-        aria-labelledby="j-menu-title"
-      >
-        <div className="p-dialog-heading">
-          <h2 id="j-menu-title">Haraya baxaq?</h2>
-          <button
-            aria-label="Menyunu bağla"
-            onClick={() => menu.current?.close()}
-          >
-            <X size={22} />
-          </button>
+        <div>
+          <span>© 2026 BakuPort Transit Platforması · Bakı şəhəri ictimai nəqliyyatı</span>
         </div>
-        <nav>
-          <a href="#passenger" onClick={() => menu.current?.close()}>
-            <Navigation size={22} />
-            Səfərini tap
-          </a>
-          <a href="#operator" onClick={() => menu.current?.close()}>
-            <Users size={22} />
-            Operator paneli
-          </a>
-        </nav>
-      </dialog>
+      </footer>
     </div>
   );
 }

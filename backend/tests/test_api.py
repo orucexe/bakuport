@@ -27,6 +27,13 @@ def test_crowd_route_membership_and_unknown_ids(client):
     assert client.post("/gps", json={"bus_id": 11, "lat": 91, "lng": 49, "speed_kmh": 18}).status_code == 422
 
 
+def test_route_code_reports_cannot_pollute_unrelated_demo_route(client):
+    assert client.post('/crowd-reports', json={'route_code':'62','level':5}).status_code == 422
+    assert client.post('/crowd-reports', json={'level':5}).status_code == 422
+    result=client.post('/crowd-reports', json={'route_code':'DEMO-B','level':3})
+    assert result.status_code == 201 and result.json()['route_id']==2
+
+
 def test_density_surge_history_and_docs(client):
     assert client.get("/health").json()["alert_window_minutes"] == 1
     density = client.get("/operator/density").json()

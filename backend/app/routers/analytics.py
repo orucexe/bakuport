@@ -35,17 +35,28 @@ def require_route(session, route_id: int) -> Route:
              summary="Report crowd level 1–5; optional bus must belong to route")
 async def crowd_report(payload: CrowdInput, request: Request):
     with request.app.state.sessions() as session:
-        require_route(session, payload.route_id)
+        route_id = payload.route_id
+        if route_id is None and payload.route_code:
+            code_str = payload.route_code.strip()
+            route_obj = session.scalar(select(Route).where(Route.code.ilike(code_str)))
+            if route_obj:
+                route_id = route_obj.id
+            else:
+                raise HTTPException(422, "Reports for this route are not supported; select a registered demo route")
+        elif route_id is None:
+            raise HTTPException(422, "A registered route ID or code is required")
+
+        require_route(session, route_id)
         if payload.bus_id is not None:
             bus = session.get(Bus, payload.bus_id)
             if bus is None:
                 raise HTTPException(404, "Bus not found")
-            if bus.route_id != payload.route_id:
+            if bus.route_id != route_id:
                 raise HTTPException(422, "Bus does not belong to this route")
-        report = CrowdReport(**payload.model_dump())
+        report = CrowdReport(route_id=route_id, bus_id=payload.bus_id, level=payload.level)
         session.add(report)
         session.commit()
-        result = {"id": report.id, **payload.model_dump(), "ts": report.ts}
+        result = {"id": report.id, "route_id": route_id, "bus_id": payload.bus_id, "level": payload.level, "ts": report.ts}
     await request.app.state.hub.publish("crowd_report", result)
     return result
 

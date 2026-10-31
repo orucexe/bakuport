@@ -15,7 +15,8 @@ class GPSInput(BaseModel):
 
 class CrowdInput(BaseModel):
     model_config = ConfigDict(json_schema_extra={"example": {"route_id": 1, "bus_id": 11, "level": 5}})
-    route_id: int = Field(gt=0)
+    route_id: int | None = Field(default=None, gt=0)
+    route_code: str | None = Field(default=None, max_length=50)
     bus_id: int | None = Field(default=None, gt=0)
     level: int = Field(ge=1, le=5, strict=True)
 

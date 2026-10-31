@@ -89,7 +89,7 @@ export default function TransitMap({
   onStop,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [showCatalog, setShowCatalog] = useState(true);
+  const [showCatalog, setShowCatalog] = useState(false);
   const [search, setSearch] = useState("");
   const [focusedStop, setFocusedStop] = useState<Stop | null>(null);
   useEffect(() => {
@@ -143,8 +143,46 @@ export default function TransitMap({
   );
   const mapStops = useMemo<MapStop[]>(() => {
     const result = new Map<string, MapStop>();
-    if (showCatalog)
-      catalog.forEach((stop) =>
+
+    // 1. Only route stops for the selected or visible routes (very fast, ~10-30 stops total)
+    visibleRoutes.forEach((route) =>
+      (stops[route.id] || []).forEach((stop) =>
+        result.set(String(stop.id), {
+          ...stop,
+          id: String(stop.id),
+          title: stop.name,
+          color: variant === "passenger" ? "#ff385c" : route.color,
+          size: route.id === selectedRoute ? 6 : 4,
+          selectable: true,
+          details: [
+            stop.source_id
+              ? `OpenData.az · ID ${stop.source_id}`
+              : "Dayanacaq",
+            `Xətt: ${route.code}`,
+          ],
+        }),
+      ),
+    );
+
+    // 2. If user searched in catalog, show matching stops (max 10)
+    if (matches.length > 0) {
+      matches.forEach((stop) =>
+        result.set(String(stop.id), {
+          ...stop,
+          id: String(stop.id),
+          title: stop.name,
+          color: "#0284c7",
+          size: 7,
+          selectable: true,
+          details: [
+            `Rəsmi dayanacaq · ID ${stop.source_id}`,
+            stop.stop_type || "Dayanacaq",
+          ],
+        }),
+      );
+    } else if (showCatalog) {
+      // If user explicitly enables full catalog, limit to max 50 to prevent browser freezing
+      catalog.slice(0, 50).forEach((stop) =>
         result.set(String(stop.id), {
           ...stop,
           id: String(stop.id),
@@ -155,30 +193,13 @@ export default function TransitMap({
           details: [
             `Rəsmi dayanacaq · ID ${stop.source_id}`,
             ...(stop.stop_type ? [stop.stop_type] : []),
-            "Marşrut uyğunluğu bu CSV məlumat dəstində yoxdur.",
           ],
         }),
       );
-    visibleRoutes.forEach((route) =>
-      (stops[route.id] || []).forEach((stop) =>
-        result.set(String(stop.id), {
-          ...stop,
-          id: String(stop.id),
-          title: stop.name,
-          color: variant === "passenger" ? "#ff385c" : route.color,
-          size: 5,
-          selectable: true,
-          details: [
-            stop.source_id
-              ? `OpenData.az · ID ${stop.source_id}`
-              : "Demo dayanacağı",
-            "Demo xəttinə daxil edilib; rəsmi marşrut uyğunluğu deyil.",
-          ],
-        }),
-      ),
-    );
+    }
+
     return [...result.values()];
-  }, [showCatalog, catalog, visibleRoutes, stops, variant]);
+  }, [showCatalog, catalog, visibleRoutes, stops, variant, matches, selectedRoute]);
   const fresh = buses.filter(
     (bus) =>
       bus.position &&

@@ -3,6 +3,7 @@ import {
   ArrowUpRight,
   Database,
   Layers,
+  LogOut,
   Menu,
   RefreshCw,
   Route,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import Operator from "./Operator";
 import SourceNotice from "../components/SourceNotice";
+import { BakuPortLogo } from "../components/BakuPortLogo";
 import type { Transit } from "../useTransit";
 import "./operator.css";
 
@@ -19,10 +21,12 @@ export default function OperatorWorkspace({
   transit,
   selectedRoute,
   setRoute,
+  onLogout,
 }: {
   transit: Transit;
   selectedRoute: number;
   setRoute: (id: number) => void;
+  onLogout?: () => void;
 }) {
   const [active, setActive] = useState("overview");
   const [refreshing, setRefreshing] = useState(false);
@@ -73,15 +77,13 @@ export default function OperatorWorkspace({
       <header className="a-header">
         <a
           className="a-brand"
-          href="#operator"
-          aria-label="IDDA operator ana səhifə"
+          href="#admin"
+          aria-label="BakuPort operator ana səhifə"
+          style={{ textDecoration: "none" }}
         >
-          <Layers size={26} strokeWidth={1.6} />
-          <strong>
-            idda<span>.</span>
-          </strong>
+          <BakuPortLogo size={26} />
         </a>
-        <span className="a-workspace-name">Nəqliyyat əməliyyatları</span>
+        <span className="a-workspace-name">Nəqliyyat Əməliyyatları</span>
         <div className="a-header-actions">
           <span
             className={`a-connection ${transit.connected ? "" : "offline"}`}
@@ -103,6 +105,18 @@ export default function OperatorWorkspace({
             Sərnişin ekranı
             <ArrowUpRight size={16} />
           </a>
+          {onLogout && (
+            <button
+              type="button"
+              className="a-icon-button"
+              onClick={onLogout}
+              title="Operator sessiyasından çıxış et"
+              aria-label="Operator sessiyasından çıxış et"
+              style={{ color: "#ef4444" }}
+            >
+              <LogOut size={17} />
+            </button>
+          )}
           <button
             className="a-mobile-menu a-icon-button"
             onClick={() => menu.current?.showModal()}
@@ -182,11 +196,10 @@ export default function OperatorWorkspace({
         )}
       </main>
       <footer className="a-footer">
-        <a className="a-brand" href="#operator">
-          <Layers size={20} />
-          <strong>idda.</strong>
+        <a className="a-brand" href="#admin" style={{ textDecoration: "none" }}>
+          <BakuPortLogo size={22} />
         </a>
-        <span>© {clock.getFullYear()} IDDA · Operator iş sahəsi</span>
+        <span>© {clock.getFullYear()} BakuPort · Operator iş sahəsi</span>
         <button onClick={() => sources.current?.showModal()}>
           Mənbələr və məlumat sərhədləri
           <ArrowUpRight size={14} />
