@@ -11,8 +11,17 @@ from ..schemas import CrowdInput
 from ..services.density import density_label
 from ..services.engine import alert_payload, ordered_stops, snapshot_payload
 from ..services.eta import eta_minutes
+from ..services.ai import forecast
 
 router = APIRouter()
+
+
+@router.get("/operator/forecast/{route_id}", tags=["Operator"], summary="Next 60 minutes: hour/day seasonal baseline",
+            description="Four 15-minute forecasts in Baku time. Synthetic seed history is marked. No external AI key is needed.")
+def density_forecast(route_id: int, request: Request):
+    with request.app.state.sessions() as session:
+        require_route(session, route_id)
+        return forecast(session, route_id, utcnow())
 
 
 def require_route(session, route_id: int) -> Route:

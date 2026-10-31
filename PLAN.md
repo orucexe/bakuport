@@ -27,8 +27,8 @@
 - [x] Reconnection, loading/error/empty states; build and real Edge desktop/mobile smoke passed.
 
 ## 4. AI (70-80 min)
-- [ ] Nonblocking recommendation with deterministic fallback.
-- [ ] Seeded seasonal forecast and chart; verify and commit.
+- [x] Nonblocking recommendation with deterministic fallback.
+- [x] Seeded seasonal forecast and chart; 30 tests and browser smoke passed.
 
 ## 5. Quality (80-120 min)
 - [ ] Unit tests: ETA, density, alert timing/reset/duplicates/recovery, validation.

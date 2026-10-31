@@ -10,11 +10,12 @@ from sqlalchemy import select
 from .config import Settings
 from .db import Base, make_database, utcnow
 from .live import LiveHub
-from .models import Bus, BusPosition, Route, RouteStop, Stop
+from .models import Alert, Bus, BusPosition, Route, RouteStop, Stop
 from .schemas import GPSInput
 from .seed import seed
 from .routers.analytics import router as analytics_router
-from .services.engine import calculate_tick
+from .services.engine import alert_payload, calculate_tick
+from .services.ai import recommendation
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     engine, sessions = make_database(settings.database_url)
     hub = LiveHub()
+    recommendation_tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -37,12 +39,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+            for pending in recommendation_tasks:
+                pending.cancel()
+            await asyncio.gather(*recommendation_tasks, return_exceptions=True)
             engine.dispose()
+
+    async def improve_recommendation(alert_id: int, route_id: int):
+        try:
+            with sessions() as session:
+                route = session.get(Route, route_id)
+            message, source = await recommendation(route, settings)
+            if source == "template":
+                return
+            with sessions() as session:
+                alert = session.get(Alert, alert_id)
+                alert.ai_recommendation = message
+                alert.recommendation_source = source
+                session.commit()
+                payload = alert_payload(alert)
+            await hub.publish("alert_updated", payload)
+        except Exception:
+            log.exception("Recommendation update failed; saved template retained")
 
     async def run_tick():
         events = await asyncio.to_thread(calculate_tick, sessions, settings, utcnow())
         for event_type, data in events:
             await hub.publish(event_type, data)
+            if event_type == "alert_created" and settings.llm_api_key:
+                pending = asyncio.create_task(improve_recommendation(data["id"], data["route_id"]))
+                recommendation_tasks.add(pending)
+                pending.add_done_callback(recommendation_tasks.discard)
 
     async def analytics_loop():
         while True:
