@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-idda}
+      POSTGRES_USER: ${POSTGRES_USER:-idda}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-idda_local_demo}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-idda}:${POSTGRES_PASSWORD:-idda_local_demo}@db:5432/${POSTGRES_DB:-idda}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DENSITY_THRESHOLD: ${DENSITY_THRESHOLD:-70}
+      ALERT_WINDOW_MINUTES: ${ALERT_WINDOW_MINUTES:-10}
+      ALERT_HYSTERESIS: ${ALERT_HYSTERESIS:-10}
+      RESOLVE_WINDOW_MINUTES: ${RESOLVE_WINDOW_MINUTES:-2}
+      CROWD_WEIGHT: ${CROWD_WEIGHT:-0.6}
+      GPS_WEIGHT: ${GPS_WEIGHT:-0.4}
+      GREEN_THRESHOLD: ${GREEN_THRESHOLD:-40}
+      RED_THRESHOLD: ${RED_THRESHOLD:-70}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-haiku-4-5}
+    ports: ['8000:8000']
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  frontend:
+    build: ./frontend
+    ports: ['5173:80']
+    depends_on:
+      backend: {condition: service_healthy}
+  simulator:
+    build: ./simulator
+    environment:
+      API_URL: http://backend:8000
+    depends_on:
+      backend: {condition: service_healthy}
+    restart: on-failure
+volumes:
+  postgres_data:

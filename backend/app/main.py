@@ -1,0 +1,100 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+
+from .config import Settings
+from .db import Base, make_database
+from .live import LiveHub
+from .models import Bus, BusPosition, Route, RouteStop, Stop
+from .schemas import GPSInput
+from .seed import seed
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings()
+    engine, sessions = make_database(settings.database_url)
+    hub = LiveHub()
+
+    @asynccontextmanager
+    async def lifespan(app):
+        Base.metadata.create_all(engine)
+        with sessions() as session:
+            seed(session)
+        yield
+        engine.dispose()
+
+    app = FastAPI(title="IDDA · Smart Transit Demo", lifespan=lifespan)
+    app.state.sessions = sessions
+    app.state.settings = settings
+    app.state.hub = hub
+    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+                       allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+
+    @app.get("/health", tags=["System"], summary="Database readiness and demo configuration")
+    def health():
+        with sessions() as session:
+            session.execute(select(1))
+        return {"status": "ok", "demo_mode": settings.demo_mode,
+                "alert_window_minutes": settings.effective_alert_minutes}
+
+    @app.get("/routes", tags=["Routes"], summary="List fictional Baku demo routes")
+    def routes():
+        with sessions() as session:
+            return list(session.scalars(select(Route).order_by(Route.id)))
+
+    @app.get("/routes/{route_id}", tags=["Routes"], summary="Get a demo route")
+    def route(route_id: int):
+        with sessions() as session:
+            result = session.get(Route, route_id)
+            if result is None:
+                raise HTTPException(404, "Route not found")
+            return result
+
+    @app.get("/routes/{route_id}/stops", tags=["Routes"], summary="Ordered route stops")
+    def stops_on_route(route_id: int):
+        route(route_id)
+        with sessions() as session:
+            return list(session.scalars(select(Stop).join(RouteStop).where(RouteStop.route_id == route_id)
+                                        .order_by(RouteStop.sequence)))
+
+    @app.get("/stops", tags=["Stops"], summary="List demo stops")
+    def stops():
+        with sessions() as session:
+            return list(session.scalars(select(Stop).order_by(Stop.id)))
+
+    @app.get("/routes/{route_id}/buses", tags=["Routes"], summary="Buses with latest live positions")
+    def buses(route_id: int):
+        route(route_id)
+        with sessions() as session:
+            result = []
+            for bus in session.scalars(select(Bus).where(Bus.route_id == route_id)):
+                position = session.scalar(select(BusPosition).where(BusPosition.bus_id == bus.id)
+                                          .order_by(BusPosition.ts.desc(), BusPosition.id.desc()).limit(1))
+                result.append({"id": bus.id, "route_id": route_id, "plate": bus.plate,
+                               "capacity": bus.capacity, "position": position})
+            return result
+
+    @app.post("/gps", tags=["Ingestion"], status_code=201, summary="Ingest a server-timestamped GPS fix")
+    async def gps(payload: GPSInput):
+        with sessions() as session:
+            bus = session.get(Bus, payload.bus_id)
+            if bus is None:
+                raise HTTPException(404, "Bus not found")
+            position = BusPosition(**payload.model_dump())
+            session.add(position)
+            session.commit()
+            result = {"bus_id": bus.id, "route_id": bus.route_id, "lat": position.lat,
+                      "lng": position.lng, "speed_kmh": position.speed_kmh, "ts": position.ts}
+        await hub.publish("bus_position", result)
+        return result
+
+    @app.websocket("/ws/live")
+    async def live(socket: WebSocket):
+        await hub.connect(socket)
+
+    return app
+
+
+app = create_app()
