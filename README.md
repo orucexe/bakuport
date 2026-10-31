@@ -1,233 +1,182 @@
-# IDDA · Smart Transit & Crowdsourcing Engine
+# BakuPort — Baku Transit Planner
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/orucexe/bakuport)
+BakuPort helps passengers find **walk → bus → walk** journeys across Baku. The operator workspace provides route-density analytics, alerts, recommendations and historical ridership charts. The interface is in Azerbaijani.
 
-Production frontend: https://idda-transit.vercel.app. The backend deployment uses the root `render.yaml` Blueprint; after Render is ready, set its HTTPS URL as Vercel's `VITE_BACKEND_URL` and redeploy the frontend. See [deployment instructions](docs/DEPLOYMENT.md).
+[Website](https://bakuport.orucs.net) · [API documentation](https://idda-api.onrender.com/docs) · [Demo walkthrough](DEMO.md)
 
-A runnable hackathon demo for Baku public transport: simulated GPS, passenger crowd reports, live arrivals, route density, operator alerts, recommendations and forecasts.
+## Run locally
 
-The app now bundles **3,600 real stops** and **15,686 daily ride observations for 65 BakuBus route codes** from OpenData.az. Recorded daily rides cover **2026-01-01 through 2026-09-30**. The three moving demo lines (`DEMO-A/B/C`), vehicle plates, live GPS, density samples and density forecasts remain simulated. Each demo line uses ten nearby real stops and three simulated buses. These lines are not official BakuBus route paths. The interface is in Azerbaijani.
+### Option A: Docker Compose — recommended
 
-The passenger screen follows [DESIGN-airbnb.md](DESIGN-airbnb.md): white canvas, rose accent, pill search and fully styled, keyboard-accessible origin/destination suggestions. Route galleries and native route selects are replaced by **“Haradan → Haraya”**. Inter replaces the unavailable licensed Cereal font. Passenger styles remain scoped; operator screens retain their design. See the [passenger design system](design-system/idda-passenger/MASTER.md).
+Prerequisites: **Git** and **Docker Desktop/Engine with Compose v2**. On Windows, Docker Desktop must be running in Linux-container mode. Internet is required for the first image build, Google Maps and live AYNA requests.
 
-Choose origin and destination or use device live location, then search. The planner finds **walk → bus → walk** journeys: nearby boarding stop, a correctly directed bus segment and a final walk to the destination. Select a per-end walking limit (400–1500 m, initially 1200 m); the planner considers up to 24 stops per endpoint and 32 candidate lines, ranks complete journeys by combined time and shows each leg. Walking geometry remains a straight-line estimate; plan duration uses 18 km/h for buses and 4.5 km/h walking, excludes waiting and is separate from live ETA. Source failures and bounded coverage are disclosed; bus transfers are not implemented. See [journey planner details](docs/JOURNEY_PLANNER.md).
+1. **Clone the repository.**
 
-No working official bus GPS provider has been verified. The new `POST /vehicles/gps` adapter accepts provider measurements and stores them separately from the demo. `/journeys/vehicles` calculates fresh GPS-based boarding/destination ETAs and 5/10/15-minute predicted positions, excluding stale, off-route or passed buses. Without measurements the UI shows no live bus or ETA. **“Demo səfərini yoxla”** uses the same planner with simulated moving buses, predictions and crowd reports. Device live location updates its map marker until stopped; it is not stored in the database. The operator demo continues unchanged.
+   ```sh
+   git clone https://github.com/orucexe/bakuport.git
+   cd bakuport
+   ```
 
-## Official open-data snapshots
+2. **Create the local environment file.** Skip this step if `.env` already exists.
 
-Real-data checks now include captured AYNA routes 1/2/62, source-published total durations, source-labeled suggestions and optional Google Routes walking geometry. Published-duration scaling is an estimate, not live ETA. Missing fares remain unknown. Run backend checks with `pytest` and walking success/denial/limit checks with `cd frontend && npm test`. See [verification details and source boundaries](docs/JOURNEY_PLANNER.md#verified-real-data-and-walking-refinement).
+   ```sh
+   cp .env.example .env
+   ```
 
-Operator styling follows [DESIGN-airtable.md](DESIGN-airtable.md): white editorial workspace, ink actions, forest/coral/cream signature surfaces, section navigation, styled statistical filters and accessible chart tables. Its [design record](design-system/idda-operator/MASTER.md) documents the scoped tokens. Passenger layout starts with a stacked mobile search and expands into a result/map grid on desktop; [passenger-responsive.css](frontend/src/pages/passenger-responsive.css) contains the progressive breakpoints.
+   PowerShell equivalent:
 
-The **[Official routes view](http://localhost:5173/#routes)** now integrates the public AYNA route service: 209 route entries with on-demand directional road geometry, ordered stops, carrier and fares. It does not show fake live vehicles. The server caches source responses and marks stale fallback data. See [real-data source verification](docs/REAL_DATA_SOURCES.md) for endpoints, captured examples, cache behavior and the GPS investigation.
+   ```powershell
+   Copy-Item .env.example .env
+   ```
 
-| Dataset | Use | Important limitation |
-| --- | --- | --- |
-| [Stop coordinates](https://opendata.az/@baki-metropoliteni/bakubus-mmc-ye-mexsus-avtobus-marsrutlari-uzre-dayanacaqlarin-cografi-koordinatlari) | All 3,600 stops appear in a searchable, optional map layer; real names and coordinates are reused on demo paths | The CSV provides stop identifiers, names, type and coordinates, but no route membership or ordered route geometry |
-| [Daily BakuBus rides, 2026](https://opendata.az/@baki-metropoliteni/bakubus-marsrutlari-uzre-gundelik-sernisin-gedislerinin-sayi-2026) | Operator chart/table with all 65 route codes, 7/30/90-day or full-history filters and daily totals | Counts are payment validations, not unique passengers, hourly density, live occupancy or a timetable |
+3. **Configure `.env`.** Set `VITE_GOOGLE_MAPS_API_KEY` to your own Google Maps browser key. Enable Maps JavaScript API; Google Routes walking refinement and address lookup also require the corresponding APIs and permissions. Allow `http://localhost:5173/*` in website restrictions. Demo keys have limited quotas; an exhausted key cannot display the map.
 
-Snapshots are included in `backend/data`, so startup and tests do not depend on the portal being available. `manifest.json` records resource IDs, download URLs, retrieval/update dates, attribution and source license metadata. The stop dataset lists no specified license; the ridership dataset lists Creative Commons Attribution (`cc-by`). Preserve source attribution and consult the original portal metadata when reusing the snapshots.
+   Keep `VITE_BACKEND_URL` and `VITE_API_BASE_URL` empty for local use. Compose supplies its internal PostgreSQL connection automatically. `DEMO_MODE=true` enables the one-minute alert scenario; normal mode uses ten minutes. `LLM_API_KEY` is optional: recommendations have a deterministic fallback. Never commit `.env` or server-side credentials.
 
-On startup the importer validates both changed CSVs before writing, preserves leading-zero stop IDs as `source_id`, checks coordinates and route/day uniqueness, and upserts records. The stop CSV has **two columns named `ID`**: its third column is the actual source identifier. The downloaded snapshot uses decimal degrees, despite the portal description mentioning microdegrees; the parser supports both. The daily date values are ISO dates even though the source column label says day-month-year.
+4. **Build and start all four services.** Run from the repository root:
 
-Imports are fingerprinted with SHA-256; restarting does not duplicate records or rebuild demo paths. An additive upgrade supplies provenance columns to an existing demo database and creates `daily_ridership` / `data_imports` tables. Old stops, reports, buses, alerts and density history are retained. Existing demo path links are reassigned to nearby real stops once, without claiming an official route-stop relationship. Startup does not clear historical observations. Set `LOAD_OPEN_DATA=false` only to skip automatic imports; this does not erase previously imported data.
+   ```sh
+   docker compose up --build
+   ```
 
-The real daily ride chart is deliberately separate from the synthetic density chart and forecast. Its window ends on the latest observation for that route, so missing October records are not represented as current or invented zeros. No daily ride total is converted into a fabricated 0–100 occupancy measurement.
+   Compose starts PostgreSQL 16, FastAPI, the frontend and the GPS/crowd simulator. Database readiness gates backend startup. The backend initializes tables, seed records and bundled data imports automatically; no manual SQL step is required.
 
-## Start with Docker
+5. **Open the application.**
 
-Prerequisites: Docker Engine/Desktop with Compose v2, running in Linux-container mode. Internet access is needed for initial dependency/image downloads and Google Maps. Create `.env` from the example only when it does not already exist, then set `VITE_GOOGLE_MAPS_API_KEY` before building the frontend.
+   | Component | Local address |
+   | --- | --- |
+   | Passenger journey planner | http://localhost:5173/ |
+   | Operator login | http://localhost:5173/admin |
+   | Official AYNA route explorer | http://localhost:5173/#routes |
+   | Swagger API documentation | http://localhost:8000/docs |
+   | Backend health check | http://localhost:8000/health |
+   | WebSocket stream | ws://localhost:8000/ws/live |
 
-```sh
-cp .env.example .env
-docker compose up --build
-```
+   Select origin/destination, choose a walking limit and search. Choose a bus option to display its boarding stop, traveled route segment and final walking leg. The operator's simulator controls require demo mode and the running simulator. The operator login is a prototype client-side gate, not server-side authorization.
 
-PowerShell: use `Copy-Item .env.example .env` for the first command. Keep the local demo credentials in `.env`; never commit keys.
+6. **Stop the services when finished.** PostgreSQL data is preserved in the `postgres_data` volume.
 
-| Interface | URL |
-| --- | --- |
-| Passenger | http://localhost:5173/#passenger |
-| Operator | http://localhost:5173/#operator |
-| Official AYNA routes | http://localhost:5173/#routes |
-| Swagger / OpenAPI | http://localhost:8000/docs / http://localhost:8000/openapi.json |
-| Health | http://localhost:8000/health |
-| WebSocket | ws://localhost:8000/ws/live |
+   ```sh
+   docker compose down
+   ```
 
-Compose starts `db`, `backend`, `frontend`, and `simulator`. PostgreSQL readiness gates the backend; backend readiness gates the other services. Nginx serves the frontend and proxies `/api/*` and `/ws/*` to the backend. Database data persists in the `postgres_data` named volume. `docker compose down` stops the stack and preserves it.
+   To rebuild after changing the browser map key, run `docker compose up --build` again: Vite embeds browser configuration at build time.
 
-The example enables **demo mode**: the alert observation window becomes one minute. Without `.env`, Compose defaults to normal mode and a ten-minute window. Set `DEMO_MODE=false` and restart the backend for the normal rule.
+### Option B: Development without Docker
 
-## Architecture
+Requires **Python 3.11+** (3.12 recommended) and **Node.js 22 with npm**. SQLite can be used for local development; Docker/Render use PostgreSQL. Commands below use PowerShell and assume the repository is already cloned.
+
+1. Create `.env` from `.env.example` and configure the map key as above. For development, change `DATABASE_URL` in `.env` to `sqlite:///./local.db`; keep the two `VITE_*` backend URL settings empty.
+2. Install Python dependencies from the repository root:
+
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt -r simulator/requirements.txt
+   ```
+
+3. Start the backend in the first terminal:
+
+   ```powershell
+   .\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+
+4. In a second terminal, start the frontend:
+
+   ```powershell
+   cd frontend
+   npm ci
+   npm run dev
+   ```
+
+5. In a third terminal at the repository root, optionally start the simulator:
+
+   ```powershell
+   .\.venv\Scripts\python.exe simulator/simulate.py --api-url http://127.0.0.1:8000
+   ```
+
+   Open http://localhost:5173/. Vite proxies `/api/*` and `/ws/*` to the local backend. On Linux/macOS, use `.venv/bin/python` instead of `.\.venv\Scripts\python.exe`.
+
+## System architecture
 
 ```mermaid
 flowchart LR
-  S[Python simulator: 9 buses] -->|GPS every 3 seconds + crowd reports| A[FastAPI REST]
-  CSV[Bundled OpenData CSV snapshots] --> I[Validated idempotent importer]
-  I --> D
-  D --> H[Actual daily ridership chart]
-  H --> O
-  P[Passenger React UI] -->|One-tap crowd report| A
-  A --> D[(PostgreSQL 16)]
-  D --> E[Minute density and alert engine]
-  E --> D
-  E --> W[WebSocket hub]
-  A --> W
-  W --> P
-  W --> O[Operator React UI]
-  E --> R[Saved template recommendation]
-  R -. optional background request .-> L[Anthropic Messages API]
-  D --> F[Hour / weekday forecast]
-  F --> O
+    User[Passenger / operator] --> Frontend[React + TypeScript + Vite]
+    Frontend -->|REST requests| API[FastAPI + SQLAlchemy]
+    API <-->|Read / write| DB[(PostgreSQL 16)]
+    API -->|WebSocket events| Frontend
+    API -->|Route and stop metadata| AYNA[Official AYNA map API]
+    CSV[Bundled OpenData CSV files] -->|Validated imports| DB
+    Simulator[Python simulator] -->|GPS and crowd reports| API
+    API --> Engine[ETA / density / alerts / forecast]
+    Engine --> DB
+    Engine -. Optional recommendation .-> LLM[Anthropic API]
+    Frontend --> Maps[Google Maps / Routes / geocoding]
 ```
 
-Backend: Python 3.12 container, FastAPI, Pydantic v2 and SQLAlchemy 2.0. Frontend: React, TypeScript, Vite, Google Maps JavaScript API through `@vis.gl/react-google-maps`, and Recharts. Google Maps replaces the original Leaflet/OpenStreetMap renderer at the user's request. One backend process owns the scheduler and WebSocket hub; run **one worker**. No Redis, PostGIS, authentication or production hosting is required for this local demo.
+- **Frontend:** passenger origin/destination search, map, bus selection and operator analytics. Google Maps renders geometry; Recharts renders density, forecasts and daily rides.
+- **Backend:** validates input, fetches/caches official metadata, plans journeys, ingests GPS/reports and calculates analytics. Run one backend worker because its scheduler and WebSocket hub are process-local.
+- **Database:** stores routes/stops, GPS fixes, crowd reports, density snapshots, alerts, daily ridership and cached source responses. SQLite is supported for development/tests; production uses PostgreSQL.
+- **Request flow:** frontend search → `POST /journeys/search` → nearby stop/line discovery → directional boarding/alighting validation → ranked walking/bus/walking options. Google Routes can refine up to three options with actual pedestrian paths. Source failures retain explicitly labeled estimates or cached data.
+- **Live flow:** GPS/report ingestion → database → ETA/density/alert processing → `/ws/live` updates. GPS-based arrivals and future positions are estimates; official route metadata alone does not provide live vehicle positions.
 
-Tables follow `AGENTS.md`: routes, stops, ordered route stops, buses, positions, crowd reports, density snapshots and alerts, plus source import records and route/day ridership. Additional route fields persist surge controls and alert streaks. Positions are indexed by `(bus_id, ts)`; snapshots by `(route_id, ts)`. A partial unique index enforces one open alert per route. Schema and seed initialization are idempotent; the existing stop-table upgrade is additive. This hackathon version does not include a general migration framework.
+| API | Purpose |
+| --- | --- |
+| `GET /health` | Backend/database readiness |
+| `POST /journeys/search` | Origin/destination journey planning |
+| `GET /journeys/vehicles` | Fresh GPS-based arrivals and predicted positions |
+| `GET /official/routes`, `/official/routes/{source_id}` | Official catalog, directional geometry, stops and fares |
+| `POST /gps`, `/vehicles/gps` | Local simulator and external-provider GPS ingestion |
+| `POST /crowd-reports` | Passenger density reports |
+| `GET /operator/density`, `/operator/alerts`, `/operator/forecast/{route_id}` | Operator analytics |
+| `GET /operator/ridership/routes`, `/operator/ridership/{code}` | Historical daily ride counts |
+| `WS /ws/live` | Position, crowd, density and alert events |
 
-## How ETA, density and alerts work
+Density combines recent crowd reports and GPS slowdown/dwell indicators, normally with weights **0.6 / 0.4**. Sustained high density triggers one open alert per route after **10 minutes**, or **1 minute in demo mode**; recovery uses hysteresis and a two-minute low-density window. Recommendations fall back to templates; forecasts use a small statistical baseline. See [algorithm details](docs/JOURNEY_PLANNER.md) and [DEMO.md](DEMO.md).
 
-- **ETA:** project the latest GPS point onto the nearest segment of the closed ordered route; sum segment distances to the selected stop using haversine. Passed stops are excluded for the current loop. Average speed uses the last five minutes, with a 5 km/h floor and an 18 km/h default. Fixes older than 30 seconds or over 500 m from the route are excluded. Results are sorted by ETA.
-- **Crowd score:** levels 1–5 map to 0–100. Reports in the last five minutes are exponentially weighted with a 120-second decay constant.
-- **GPS score:** slower average speed relative to 18 km/h increases the score. Consecutive low-speed observations within 60 m of a stop add dwell pressure after 30 seconds. GPS mixes 70% slowdown with 30% dwell; stale buses are excluded.
-- **Route score:** `0.6 * crowd + 0.4 * gps`, with configurable weights summing to one. With only reports, use their score and medium confidence; with only GPS, use its score and low confidence. With neither, return `confidence=unavailable` and an unknown label. Snapshots normally run every 60 seconds and are broadcast live.
-- **Colors:** `<40` green / `Rahat`, `40–<70` yellow / `Orta sıxlıq`, `>=70` red / `Sıx`. UI labels accompany colors. Passenger bus crowd labels prefer the latest recent report for that bus, falling back to route density.
-- **Alert:** readings at or above 70 must persist for ten minutes, or one minute in demo mode. A lower reading resets the high streak. One alert is saved and broadcast; sustained scores strictly below 60 for two minutes resolve it. The 60–69 hysteresis band does not resolve an open alert. Missing data or an evaluation gap over 90 seconds resets pending streaks, so an outage is not treated as continuous evidence. Streak timestamps survive backend restarts.
-- **Demo surge:** the endpoint controls simulator behavior, not a hardcoded density result. A scenario switch opens a fresh observation window, without deleting old reports or positions, and schedules an extra analytics tick after five seconds. The simulator immediately sends new crowd reports when the mode changes. This makes a fresh high-density alert observable in about 65–75 seconds. Disabling surge opens another fresh observation window; allow roughly 2–3 minutes for recovery. These scenario observation cutoffs apply only in demo mode.
+## Data sources and limitations
 
-## AI integration
+Counts below describe the bundled or verified source snapshots, not a guarantee that upstream data never changes.
 
-Every new alert is immediately saved with a deterministic Azerbaijani recommendation. If `LLM_API_KEY` is set, a background [Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create) request may improve it. A ten-second timeout, HTTP failure, malformed response or missing key retains the template. GPS ingestion and alert publication do not wait for the provider. `recommendation_source` distinguishes `template` from `llm`. A real paid API call is optional; tests use mocked responses.
-
-The forecast is a small **statistical seasonal baseline**, independent of the LLM: hour proximity in Baku time and day-of-week weighting over the previous 14 days, adjusted by recent measured density. It returns four points, 15/30/45/60 minutes ahead, clamped to 0–100. Seeded synthetic history is explicitly marked in the API and UI, never used as current measured density or to trigger alerts. `insufficient_data=true` marks the zero-valued empty-history fallback. Forecasts and recommendations are demo decision support, not validated operational predictions.
-
-## Configuration
-
-| Variable | Default | Purpose |
+| Source | Included information | Usage and boundaries |
 | --- | --- | --- |
-| `POSTGRES_DB`, `POSTGRES_USER` | `idda` | Compose database identity |
-| `POSTGRES_PASSWORD` | `idda_local_demo` | Local demo password; change for any shared installation |
-| `DATABASE_URL` | PostgreSQL URL | Direct backend connections; Compose constructs its internal URL from the PostgreSQL variables |
-| `DEMO_MODE` | `false` (`true` in example) | One-minute alert window and surge endpoint |
-| `LOAD_OPEN_DATA` | `true` | Import bundled official snapshots and attach real stops to demo paths |
-| `AYNA_API_URL` | `https://map-api.ayna.gov.az` | Public official route metadata upstream |
-| `AYNA_CACHE_HOURS` | `24` | Persistent metadata cache lifetime; stale fallback is labeled |
-| `VITE_GOOGLE_MAPS_API_KEY` | empty | Google Maps browser key; set in the ignored root `.env` |
-| `VITE_GOOGLE_MAP_ID` | `DEMO_MAP_ID` | Map ID for advanced vehicle markers; use an owned map ID for production |
-| `DENSITY_THRESHOLD` | `70` | High-density alert threshold |
-| `ALERT_WINDOW_MINUTES` | `10` | Normal alert window; demo mode overrides to 1 |
-| `ALERT_HYSTERESIS` | `10` | Recovery threshold offset |
-| `RESOLVE_WINDOW_MINUTES` | `2` | Continuous low-density recovery time |
-| `CROWD_WEIGHT`, `GPS_WEIGHT` | `0.6`, `0.4` | Nonnegative density weights; must sum to 1 |
-| `GREEN_THRESHOLD`, `RED_THRESHOLD` | `40`, `70` | Density label boundaries |
-| `LLM_API_KEY` | empty | Optional Anthropic key, backend only |
-| `LLM_MODEL` | `claude-haiku-4-5` | Configurable provider model |
-| `API_URL` | `http://localhost:8000` | Simulator target; Compose uses `http://backend:8000` |
+| [OpenData.az — BakuBus stop coordinates](https://opendata.az/@baki-metropoliteni/bakubus-mmc-ye-mexsus-avtobus-marsrutlari-uzre-dayanacaqlarin-cografi-koordinatlari) | **3,600** stop records | Names, source IDs and coordinates. This CSV does **not** specify ordered route membership. |
+| [OpenData.az — daily BakuBus rides, 2026](https://opendata.az/@baki-metropoliteni/bakubus-marsrutlari-uzre-gundelik-sernisin-gedislerinin-sayi-2026) | **15,686** route/day observations across **65** route codes, **January–September 2026** | Operator historical statistics. Counts are payment validations, not unique passengers or live occupancy. |
+| [Official AYNA map](https://map.ayna.gov.az/) | **209** catalog entries at verification; directional road shapes, ordered stops, carriers and fares fetched on demand | Not every line is operated by BakuBus. Source IDs differ from route numbers: public line **62** uses source ID **48**. Captured samples include lines 1, 2 and 62. Cached fallback and retrieval dates are disclosed. |
+| Google Maps Platform | Basemap, geocoding and optional walking-route geometry/time | Requires a browser key and enabled services. Failed walking refinement remains a labeled straight-line estimate. Manually curated place suggestions are approximate. |
+| Local seed and simulator | Seeded paths, vehicle identities, generated GPS/reports and synthetic history | Development fixtures, even when labels resemble actual bus numbers. These are **not verified live operator data** and must not be treated as official route geometry. |
 
-`/health` reports the effective alert window. Store timestamps in UTC and display times in `Asia/Baku`. Vite development proxies backend requests through the same origin; the Google Maps browser key is configured separately. Server-assigned ingestion timestamps avoid accepting future or forged historical observation times.
+Bundled files live in [`backend/data`](backend/data). [`manifest.json`](backend/data/manifest.json) records OpenData provenance, resource URLs, hashes and license metadata. The ridership source lists `cc-by`; the stop source does not specify a license. Preserve attribution. See [source verification](docs/REAL_DATA_SOURCES.md) for availability and reuse boundaries.
 
-### Google Maps setup
-
-Set `VITE_GOOGLE_MAPS_API_KEY=your-browser-key` in the root `.env`, which is ignored by Git. Vite reads that root file in local development; Docker Compose passes the same value to the frontend build. Restart Vite after changing it, or rebuild the frontend image for Docker. The supplied key is configured only in the local ignored file, never in application source or `.env.example`.
-
-Enable **Maps JavaScript API** and billing for the key's Google Cloud project. This is a browser key and is necessarily included in the served JavaScript; use Google's [website/referrer restrictions](https://developers.google.com/maps/api-security-best-practices), including `http://localhost:5173/*`, `http://127.0.0.1:5173/*` and the actual deployment origin as appropriate. Keep server-side secrets such as `LLM_API_KEY` outside the `VITE_` namespace.
-
-All three map views use Google Maps: passenger, operator and official AYNA routes. Native route polylines and a data layer render paths and stop catalogs; advanced markers update simulator buses. The map instance is reused across navigation. Missing keys, script/network loading failure and authentication rejection show a map-local error while the rest of the app remains available. The Google basemap displays the existing AYNA/OpenData information and simulated movement; data provenance and GPS availability remain labeled.
-
-## Demo and API
-
-See [DEMO.md](DEMO.md) for the three-minute walkthrough. Start surge with the operator button or:
-
-```sh
-curl -X POST "http://localhost:8000/demo/surge?route_id=1&level=5"
-curl "http://localhost:8000/operator/alerts?status=open"
-curl -X POST "http://localhost:8000/demo/surge?route_id=1&level=0"
-```
-
-In PowerShell, use `curl.exe` or `Invoke-RestMethod -Method Post 'http://localhost:8000/demo/surge?route_id=1&level=5'`. Surge returns 403 outside demo mode. It needs the running simulator to generate the new observations. Simulator CLI alternative: `python simulator/simulate.py --surge-route 1`; `--steps 2` performs a short smoke run.
-
-| Method | Endpoint | Result |
-| --- | --- | --- |
-| GET | `/health` | DB readiness, demo flag, effective alert window |
-| GET | `/routes`, `/routes/{id}`, `/routes/{id}/stops` | Routes and ordered stop paths |
-| GET | `/stops`, `/stops/{id}/arrivals` | Stops and fresh sorted arrivals |
-| GET | `/routes/{id}/buses` | Buses and latest position or `null` |
-| POST | `/gps` | Validated GPS fix (201) |
-| POST | `/crowd-reports` | Level 1–5, optional bus belonging to the route (201) |
-| GET | `/operator/density` | Latest measured density per route |
-| GET | `/operator/density/{id}/history?minutes=60` | Chronological history, synthetic flag |
-| GET | `/operator/alerts?status=open` | Open, resolved, or all stored alerts |
-| GET | `/operator/forecast/{id}` | Four seasonal forecast points |
-| GET | `/data/sources` | Source URLs, licenses, hashes, imported counts and mapping limitations |
-| GET | `/official/routes` | Actual AYNA route catalog, source/fetch date and freshness |
-| GET | `/official/routes/{source_id}` | Actual directional path/stops, carrier, tariff; no live GPS |
-| GET | `/operator/ridership/routes` | 65 actual route codes and recorded daily ride totals |
-| GET | `/operator/ridership/{code}?days=30` | Actual daily ride history; e.g. code `62` or `7A` |
-| POST | `/demo/surge?route_id=1&level=5` | Demo scenario state; level 0 stops it |
-| WS | `/ws/live` | Shared realtime event stream |
-
-Example bodies: GPS `{"bus_id":11,"lat":40.384,"lng":49.848,"speed_kmh":18}`; crowd report `{"route_id":1,"bus_id":11,"level":5}`. Unknown resources return 404, invalid inputs return 422. Latitude/longitude, speed, query ranges, integer crowd levels and bus/route membership are validated.
-
-WebSocket envelopes are `{"type":"bus_position","data":{...}}`. Types: `bus_position`, `crowd_report`, `density_update`, `alert_created`, `alert_resolved`, `alert_updated`, `surge_changed`. Positions include `bus_id`, `route_id`, coordinates, speed and timestamp; density includes route, score, confidence and label; alert events include the stored recommendation and status. No replay is promised: on reconnection the UI reloads REST state. Disconnected clients retry after 2.5 seconds and poll every 15 seconds. Per-client queues are bounded so a slow connection cannot block ingestion.
+**No working official live bus GPS feed has been verified.** Real lines use AYNA metadata; moving simulator vehicles remain simulated. Bus time is scaled from a published route duration where available, otherwise estimated at 18 km/h; waiting is excluded. Walking distances/times use Google Routes when available, otherwise haversine distance and 4.5 km/h. Phone live location is opt-in and is not itself bus GPS. Transfers between buses are not implemented.
 
 ## Tests
 
-From the repository root, with Python 3.11+:
+Backend, from the repository root after installing Python dependencies:
 
 ```sh
-python -m venv .venv
-# Activate the environment, then:
-pip install -r backend/requirements.txt
 pytest
 ```
 
-PowerShell without activation: `.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt`, then `.\.venv\Scripts\python.exe -m pytest`.
+PowerShell without activating the environment: `.\.venv\Scripts\python.exe -m pytest`. Tests use isolated SQLite databases and mocked provider responses; captured AYNA geometry also has offline regression tests.
 
-Tests use isolated SQLite databases, with foreign keys enabled, to run without PostgreSQL. They cover route projection, stale/off-route ETA behavior, speed smoothing/floor, density weights/recency, color boundaries, input validation, the full ten-minute alert boundary, interrupted streaks, duplicate prevention, hysteresis/recovery, demo timing, provider fallback, seasonal forecast, idempotent seeds, GPS-to-arrivals, WebSocket delivery and nonblocking LLM behavior. Open-data tests additionally cover source CSV totals, leading-zero IDs, decimal/microdegree coordinates, legacy schema upgrades, preservation of reports, repeat imports, actual daily aggregates and GPS/ETA on imported stops. Time-based unit tests use injected timestamps rather than waiting ten minutes.
-
-Frontend build smoke:
+Frontend:
 
 ```sh
 cd frontend
 npm ci
+npm test
 npm run build
 ```
 
-Inside Compose: `docker compose exec backend pytest` and `docker compose exec backend python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/health').read().decode())"`.
+Coverage includes ETA, walking/bus/walking matching, GPS freshness, density, alert timing/recovery, validation, source imports/cache, provider failure and walking-limit handling. Build validates TypeScript and bundles the frontend. Docker startup must be checked on a host with Docker available.
 
-## Local development without Docker
+## Deployment and further documentation
 
-Normal development can use any local PostgreSQL 16 instance and an appropriate `DATABASE_URL`. For a temporary offline demo or tests, the backend also accepts SQLite; the Docker target remains PostgreSQL. Set explicit environment variables in the backend terminal so `.env` does not select the Compose-only hostname `db`.
+Frontend is hosted on **Vercel** and the API/database on **Render**. Production uses a Vercel `/api` rewrite to Render plus a direct Render WebSocket. Keep production URL settings out of local development unless intentionally using the hosted API.
 
-PowerShell, terminal 1 (repository root, after installing Python requirements):
+- [Vercel / Render setup and environment variables](docs/DEPLOYMENT.md)
+- [Journey planner, GPS and walking algorithms](docs/JOURNEY_PLANNER.md)
+- [Real-data sources and verification](docs/REAL_DATA_SOURCES.md)
+- [Three-minute presentation script](DEMO.md)
 
-```powershell
-$env:DATABASE_URL = 'sqlite:///./local-demo.db'
-$env:DEMO_MODE = 'true'
-.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-```
-
-Terminal 2:
-
-```powershell
-cd frontend
-npm.cmd ci
-npm.cmd run dev -- --port 5173
-```
-
-Terminal 3 (repository root):
-
-```powershell
-.\.venv\Scripts\python.exe simulator/simulate.py
-```
-
-Use `npm.cmd` on Windows when PowerShell blocks `npm.ps1`. Unix equivalents use `export DATABASE_URL=...`, `export DEMO_MODE=true`, and `.venv/bin/python`.
-
-## Verification and limits
-
-All 48 backend tests, the production frontend build and real Edge desktop/mobile browser checks passed. The simulator-to-REST-to-WebSocket thin slice was checked against a running local backend. A live surge created an alert after 65.7 seconds and resolved it after 126.1 seconds of recovery. Browser checks covered moving markers, live alert/recommendation display, reports, cross-route stop selection, WebSocket reconnection, API failure/recovery, and map tile failures. Compose YAML and PostgreSQL DDL were checked statically. See `PLAN.md` for the final verification record.
-
-Docker is not installed on the implementation host, so a PostgreSQL-container clean start and the complete Compose stack could not be executed here. Compose configuration is supplied, but this remains a required environment-level check on a Docker-enabled machine. No real LLM key was used; provider success and failure are tested using HTTP mocks. Google Maps and web fonts need connectivity; map-local configuration/loading/authentication errors are shown without hiding the rest of the interface. Google Maps was verified in a real browser using the supplied local browser key.
-
-This is an unauthenticated local demo. Do not expose the ingestion, operator, or demo controls publicly. Authentication, rate limiting, schema migrations, retention policies and multi-worker event distribution are outside this hackathon version.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/orucexe/bakuport)

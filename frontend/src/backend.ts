@@ -1,5 +1,5 @@
 const configuredBackend = import.meta.env.VITE_BACKEND_URL?.trim().replace(/\/$/, '') || '';
-export const backendConfigured = !import.meta.env.PROD || !!configuredBackend;
+export const backendConfigured = !import.meta.env.PROD || !!configuredBackend || import.meta.env.VITE_ALLOW_SAME_ORIGIN_API === 'true';
 export const backendUnavailableMessage = 'Backend hələ qoşulmayıb. Səfər axtarışı və canlı məlumatlar API yayımlandıqdan sonra aktiv olacaq.';
 export const apiBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') || configuredBackend || '/api';
 export function liveSocketUrl(): string {

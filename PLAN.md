@@ -77,4 +77,4 @@
 - [x] Vercel project/environment, SPA routes, backend URL/WS wiring; frontend production published.
 - [x] Render PostgreSQL blueprint/CORS/driver setup, deployment docs and two config tests.
 - [x] Published github.com/orucexe/bakuport (master); clean checkout: 65 backend tests and frontend checks pass.
-- [x] Connected idda-api.onrender.com to Vercel/custom domain; REST proxy, WS, maps/catalog and real search verified.
+- [x] Connected Render/Vercel; REST/WS/maps/search verified. GitHub README rewritten with numbered setup, architecture/data; Docker API config corrected.
