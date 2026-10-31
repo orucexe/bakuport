@@ -38,15 +38,12 @@
 - [x] Update checklist, record verification limits and commit everything.
 
 ## Verification record
-- 34 pytest tests passed; frontend TypeScript + production build passed.
-- Real Edge: desktop and 390px passenger/operator layouts, no horizontal overflow.
-- Browser: moving GPS markers, reports, route/stop selection, live alert + template.
-- Browser: WebSocket reconnect, API error/recovery, persistent map tile failure state.
+- Initial quality gate: 34 tests, production build, desktop/mobile Edge passed.
+- Browser: live GPS, reports, selectors, alerts, reconnect, API/map failure recovery.
 - Live simulator rehearsal: alert created after 65.7s; resolved after 126.1s recovery.
 - Fresh SQLite startup, idempotent seeding, Compose YAML and PostgreSQL DDL checked.
 - [ ] External environment check: Docker/PostgreSQL container startup (Docker absent).
 - Real LLM calls were not made; success/failure/timeout paths use HTTP mocks.
-- Fixed demo report timing, tile error clearing, timezone data and chart refresh churn.
 
 ## Open-data update
 - [x] Download and inspect both user-provided OpenData CSV resources.
@@ -57,7 +54,6 @@
 - [x] Update documentation; 39 tests, build, browser and static PostgreSQL DDL pass.
 - Existing local database backed up under .local/backups before the real-data import.
 - Source window: Jan 1-Sep 30, 2026; no October records invented or daily loads inferred.
-- Backend, frontend and simulator remain running for the user after this update.
 
 ## Official route integration
 - [x] Inspect official AYNA/BakuBus services; verify 209 route entries and geometry.
@@ -67,7 +63,6 @@
 - [x] 48 tests, build, desktop/mobile/error browser checks and real route 62 fetch pass.
 - Official source returned 209 routes; route 62 returned 2 directions / 63 stop entries.
 - Old BakuBus GPS endpoint returned 404; no unverified GPS feed was enabled.
-- Verification and source boundaries: docs/REAL_DATA_SOURCES.md; app stays running.
 
 ## Google Maps (user-requested stack change)
 - [x] Replace Leaflet/OSM with Google Maps on passenger, operator and official views.
@@ -75,3 +70,9 @@
 - [x] Real Google map/browser checks pass: moving buses, search, directions, fullscreen/mobile.
 - [x] Document browser key setup; production build passes; key excluded from tracked files.
 - [x] Commit implementation and keep the local application running.
+
+## Passenger UI (requested follow-up; approximately 45 min)
+- [x] Apply ui-ux-pro-max with DESIGN-airbnb.md as the visual source of truth.
+- [x] Scope white/rose styling, desktop search/rail and mobile native dialogs to passenger.
+- [x] Preserve maps, demo labels, route/stop selection, arrivals, reports and source links.
+- [x] Build, Edge 320-1440px layouts, dialogs, reports, API error/empty/retry and existing views pass; commit.

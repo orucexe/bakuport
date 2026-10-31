@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   AdvancedMarker,
   InfoWindow,
@@ -20,10 +20,12 @@ function LiveBus({
   bus,
   route,
   level,
+  color,
 }: {
   bus: Bus;
   route?: Route;
   level: Level;
+  color?: string;
 }) {
   const [markerRef, marker] = useAdvancedMarkerRef();
   const [open, setOpen] = useState(false);
@@ -37,7 +39,7 @@ function LiveBus({
         onClick={() => setOpen(true)}
       >
         <div className="bus-map-icon">
-          <span style={{ background: route?.color || "#087f8c" }}>
+          <span style={{ background: color || route?.color || "#087f8c" }}>
             <BusFront size={17} />
             <b>{bus.id}</b>
           </span>
@@ -60,6 +62,8 @@ function LiveBus({
 }
 
 interface Props {
+  variant?: "passenger";
+  focusRequest?: number;
   catalog?: Stop[];
   routes: Route[];
   stops: Record<number, Stop[]>;
@@ -72,6 +76,8 @@ interface Props {
 }
 
 export default function TransitMap({
+  variant,
+  focusRequest = 0,
   catalog = [],
   routes,
   stops,
@@ -86,6 +92,13 @@ export default function TransitMap({
   const [showCatalog, setShowCatalog] = useState(true);
   const [search, setSearch] = useState("");
   const [focusedStop, setFocusedStop] = useState<Stop | null>(null);
+  useEffect(() => {
+    if (!focusRequest || !selectedStop) return;
+    const stop = Object.values(stops)
+      .flat()
+      .find((stop) => stop.id === selectedStop);
+    if (stop) setFocusedStop({ ...stop });
+  }, [focusRequest, selectedStop, stops]);
   const catalogId = useId();
   const visibleRoutes = useMemo(
     () =>
@@ -121,10 +134,12 @@ export default function TransitMap({
             ? levelColor[
                 d && d.confidence !== "unavailable" ? d.level : "unknown"
               ]
-            : route.color,
+            : variant === "passenger"
+              ? "#ff385c"
+              : route.color,
         };
       }),
-    [visibleRoutes, stops, density, operator],
+    [visibleRoutes, stops, density, operator, variant],
   );
   const mapStops = useMemo<MapStop[]>(() => {
     const result = new Map<string, MapStop>();
@@ -134,7 +149,7 @@ export default function TransitMap({
           ...stop,
           id: String(stop.id),
           title: stop.name,
-          color: "#668aa0",
+          color: variant === "passenger" ? "#929292" : "#668aa0",
           size: 3,
           selectable: false,
           details: [
@@ -150,7 +165,7 @@ export default function TransitMap({
           ...stop,
           id: String(stop.id),
           title: stop.name,
-          color: route.color,
+          color: variant === "passenger" ? "#ff385c" : route.color,
           size: 5,
           selectable: true,
           details: [
@@ -163,7 +178,7 @@ export default function TransitMap({
       ),
     );
     return [...result.values()];
-  }, [showCatalog, catalog, visibleRoutes, stops]);
+  }, [showCatalog, catalog, visibleRoutes, stops, variant]);
   const fresh = buses.filter(
     (bus) =>
       bus.position &&
@@ -238,6 +253,7 @@ export default function TransitMap({
         <GoogleMapViewport points={focusedStops} focus={focusedStop} />
         <GoogleRouteLines lines={lines} />
         <GoogleStopLayer
+          selectedColor={variant === "passenger" ? "#ff385c" : undefined}
           stops={mapStops}
           selectedId={selectedStop ? String(selectedStop) : null}
           onSelect={(id) => onStop?.(Number(id))}
@@ -246,6 +262,7 @@ export default function TransitMap({
           const d = density.find((d) => d.route_id === bus.route_id);
           return (
             <LiveBus
+              color={variant === "passenger" ? "#ff385c" : undefined}
               key={bus.id}
               bus={bus}
               route={routes.find((route) => route.id === bus.route_id)}

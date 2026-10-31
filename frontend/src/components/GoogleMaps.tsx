@@ -185,10 +185,12 @@ export function GoogleStopLayer({
   stops,
   selectedId,
   onSelect,
+  selectedColor = "#8361cd",
 }: {
   stops: MapStop[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
+  selectedColor?: string;
 }) {
   const map = useMap();
   const layer = useRef<google.maps.Data | null>(null);
@@ -237,13 +239,13 @@ export function GoogleStopLayer({
         fillOpacity: 0.9,
         strokeColor:
           String(feature.getId()) === selectedId
-            ? "#8361cd"
+            ? selectedColor
             : String(feature.getProperty("color")),
         strokeWeight: String(feature.getId()) === selectedId ? 3 : 1.5,
       },
       title: String(feature.getProperty("title")),
       zIndex: String(feature.getId()) === selectedId ? 5 : 1,
     }));
-  }, [map, stops, selectedId]);
+  }, [map, stops, selectedId, selectedColor]);
   return null;
 }

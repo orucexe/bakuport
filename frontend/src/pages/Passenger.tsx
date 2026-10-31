@@ -1,19 +1,80 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
-  ArrowDown,
+  ArrowRight,
   ArrowUpRight,
   BusFront,
   Check,
+  ChevronDown,
+  CircleHelp,
+  CircleUserRound,
   Clock3,
+  Globe2,
   MapPin,
-  Navigation,
-  Send,
+  Menu,
+  MessageCircle,
+  Radio,
+  Route as RouteIcon,
+  Search,
   Users,
+  Wifi,
+  WifiOff,
+  X,
 } from "lucide-react";
 import { api, levelText } from "../api";
 import TransitMap from "../components/TransitMap";
 import type { Transit } from "../useTransit";
-import type { Arrival } from "../types";
+import type { Arrival, Stop } from "../types";
+import "./passenger.css";
+
+function RoutePreview({
+  stops,
+  selected,
+}: {
+  stops: Stop[];
+  selected: boolean;
+}) {
+  const meanLatitude =
+    stops.reduce((sum, stop) => sum + stop.lat, 0) / (stops.length || 1);
+  const xs = stops.map(
+    (stop) => stop.lng * Math.cos((meanLatitude * Math.PI) / 180),
+  );
+  const ys = stops.map((stop) => -stop.lat);
+  const width = Math.max(...xs) - Math.min(...xs) || 1;
+  const height = Math.max(...ys) - Math.min(...ys) || 1;
+  const scale = Math.min(230 / width, 66 / height);
+  const points = stops.map((_, index) => ({
+    x: 145 + (xs[index] - (Math.min(...xs) + width / 2)) * scale,
+    y: 47 + (ys[index] - (Math.min(...ys) + height / 2)) * scale,
+  }));
+  return (
+    <svg viewBox="0 0 290 94" className="p-route-preview" aria-hidden="true">
+      <path
+        d="M0 23H290M0 70H290M42 0V94M246 0V94M0 94 150 0M140 94 290 0"
+        className="p-preview-grid"
+      />
+      <polyline
+        points={[...points, ...points.slice(0, 1)]
+          .map((point) => `${point.x},${point.y}`)
+          .join(" ")}
+        fill="none"
+        stroke={selected ? "var(--p-accent)" : "var(--p-muted)"}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      {points.map((point, index) => (
+        <circle
+          key={index}
+          cx={point.x}
+          cy={point.y}
+          r="3"
+          fill="var(--p-canvas)"
+          stroke={selected ? "var(--p-accent)" : "var(--p-muted)"}
+          strokeWidth="1.5"
+        />
+      ))}
+    </svg>
+  );
+}
 
 export default function Passenger({
   transit,
@@ -34,30 +95,60 @@ export default function Passenger({
   const [error, setError] = useState("");
   const [reportBus, setReportBus] = useState(0);
   const [sending, setSending] = useState(false);
-  const [notice, setNotice] = useState("");
-  const route = routes.find((r) => r.id === selectedRoute);
+  const [notice, setNotice] = useState<{
+    text: string;
+    success: boolean;
+  } | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const searchDialog = useRef<HTMLDialogElement>(null);
+  const menuDialog = useRef<HTMLDialogElement>(null);
+  const aboutDialog = useRef<HTMLDialogElement>(null);
+  const route = routes.find((item) => item.id === selectedRoute);
   const routeStops = stops[selectedRoute] || [];
-  const routeBuses = buses.filter((b) => b.route_id === selectedRoute);
-  const currentDensity = density.find((d) => d.route_id === selectedRoute);
+  const currentStop = routeStops.find((stop) => stop.id === selectedStop);
+  const routeBuses = buses.filter((bus) => bus.route_id === selectedRoute);
+  const currentDensity = density.find(
+    (item) => item.route_id === selectedRoute,
+  );
+  const crowdLevel =
+    currentDensity && currentDensity.confidence !== "unavailable"
+      ? currentDensity.level
+      : "unknown";
+  const nextArrival = arrivals[0];
+
   useEffect(() => {
     setReportBus(0);
-    setNotice("");
+    setNotice(null);
   }, [selectedRoute]);
   useEffect(() => {
-    if (!selectedStop) return;
+    if (!selectedStop) {
+      setLoading(false);
+      setArrivals([]);
+      setError("");
+      return;
+    }
     let active = true;
+    const controller = new AbortController();
     setLoading(true);
     setArrivals([]);
     async function load() {
       try {
-        const data = await api<Arrival[]>(`/stops/${selectedStop}/arrivals`);
+        const data = await api<Arrival[]>(`/stops/${selectedStop}/arrivals`, {
+          signal: controller.signal,
+        });
         if (active) {
-          setArrivals(data.filter((a) => a.route_id === selectedRoute));
+          setArrivals(
+            data.filter((arrival) => arrival.route_id === selectedRoute),
+          );
           setError("");
         }
       } catch (err) {
         if (active)
-          setError(err instanceof Error ? err.message : "ETA yüklənmədi.");
+          setError(
+            err instanceof Error ? err.message : "Gəliş vaxtları yüklənmədi.",
+          );
       } finally {
         if (active) setLoading(false);
       }
@@ -66,12 +157,37 @@ export default function Passenger({
     const timer = setInterval(load, 10000);
     return () => {
       active = false;
+      controller.abort();
       clearInterval(timer);
     };
   }, [selectedStop, selectedRoute, revision]);
+
+  function scrollTo(id: string) {
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    document.getElementById(id)?.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+  function showMap(event?: FormEvent) {
+    event?.preventDefault();
+    searchDialog.current?.close();
+    setFocusRequest((value) => value + 1);
+    scrollTo("passenger-map");
+  }
+  function openSearch() {
+    searchDialog.current?.showModal();
+    setSearchOpen(true);
+  }
+  function openMenu() {
+    menuDialog.current?.showModal();
+    setMenuOpen(true);
+  }
   async function report(level: number) {
     setSending(true);
-    setNotice("");
+    setNotice(null);
     try {
       await api("/crowd-reports", {
         method: "POST",
@@ -82,258 +198,620 @@ export default function Passenger({
           level,
         }),
       });
-      setNotice(
-        "Hesabatınız qəbul edildi. Sıxlıq növbəti dəqiqə ərzində yenilənəcək.",
-      );
+      setNotice({
+        text: "Təşəkkürlər! Hesabatınız qəbul edildi. Sıxlıq növbəti dəqiqə ərzində yenilənəcək.",
+        success: true,
+      });
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Hesabat göndərilmədi.");
+      setNotice({
+        text:
+          err instanceof Error
+            ? err.message
+            : "Hesabat göndərilmədi. Yenidən cəhd edin.",
+        success: false,
+      });
     } finally {
       setSending(false);
     }
   }
+  function routeOptions() {
+    return routes.map((item) => (
+      <option value={item.id} key={item.id}>
+        {item.code} · {item.name.replace(" (demo)", "")}
+      </option>
+    ));
+  }
+  function stopOptions() {
+    return routes.map((item) => (
+      <optgroup key={item.id} label={item.code}>
+        {(stops[item.id] || []).map((stop) => (
+          <option key={stop.id} value={stop.id}>
+            {stop.name}
+          </option>
+        ))}
+      </optgroup>
+    ));
+  }
+
   return (
-    <>
-      <div className="page-title">
-        <div>
-          <div className="eyebrow">SƏRNİŞİN PANELİ</div>
-          <h1>
-            Şəhər hərəkətdədir<span>.</span>
-          </h1>
-          <p>Avtobusunuzu tapın, vaxtınızı rahat planlaşdırın.</p>
-        </div>
-        <div className="location-tag">
-          <MapPin size={15} /> Bakı <span>AZ</span>
-        </div>
-      </div>
-      <div className="route-tabs" aria-label="Marşrut seçimi">
-        {routes.map((r) => {
-          const d = density.find((d) => d.route_id === r.id);
-          return (
-            <button
-              key={r.id}
-              onClick={() => setRoute(r.id)}
-              className={`route-tab ${selectedRoute === r.id ? "selected" : ""}`}
-              aria-pressed={selectedRoute === r.id}
-            >
-              <span
-                className="route-symbol"
-                style={{ backgroundColor: `${r.color}15`, color: r.color }}
-              >
-                <BusFront size={19} />
-              </span>
-              <span>
-                <strong>{r.code}</strong>
-                <small>{r.name.replace(" (demo)", "")}</small>
-              </span>
-              <span
-                className={`tiny-dot ${d && d.confidence !== "unavailable" ? d.level : "unknown"}`}
-              />
-            </button>
-          );
-        })}
-      </div>
-      <div className="passenger-layout">
-        <div className="passenger-main">
-          <TransitMap
-            catalog={transit.catalog}
-            routes={routes}
-            stops={stops}
-            buses={buses}
-            density={density}
-            selectedRoute={selectedRoute}
-            selectedStop={selectedStop}
-            onStop={setStop}
-          />
-          <div className="help-strip">
-            <span className="help-icon">
-              <Navigation size={19} />
-            </span>
-            <div>
-              <strong>Birlikdə daha rahat səfərlər</strong>
-              <p>
-                Sıxlıq hesabatınız digər sərnişinlərə doğru seçim etməyə kömək
-                edir.
-              </p>
-            </div>
-            <ArrowUpRight size={20} />
-          </div>
-        </div>
-        <aside className="journey-column">
-          <section className="card journey-card">
-            <div className="section-title">
-              <h2>Səfərinizi planlaşdırın</h2>
-              <span className="soft-icon">
-                <Navigation size={17} />
-              </span>
-            </div>
-            <label htmlFor="stop-select" className="field-label">
-              DAYANACAQ SEÇİN
-            </label>
-            <div className="select-wrap">
-              <MapPin size={18} />
-              <select
-                id="stop-select"
-                value={selectedStop}
-                onChange={(event) => setStop(Number(event.target.value))}
-              >
-                {routes.map((r) => (
-                  <optgroup key={r.id} label={`${r.code} · ${r.name}`}>
-                    {(stops[r.id] || []).map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-            <div className="route-journey">
-              <div className="journey-track">
-                <i />
-                <span />
-                <MapPin size={14} />
-              </div>
-              <div>
-                <span>Seçilmiş marşrut</span>
-                <strong>{route?.name.replace(" (demo)", "")}</strong>
-                <small>
-                  {routeStops.length} dayanacaq <ArrowDown size={11} />{" "}
-                  {route?.code}
-                </small>
-              </div>
-            </div>
-            <div className="density-note">
-              <Users size={16} />
-              <span>Marşrutda sıxlıq</span>
-              <span
-                className={`badge ${currentDensity && currentDensity.confidence !== "unavailable" ? currentDensity.level : "unknown"}`}
-              >
-                {
-                  levelText[
-                    currentDensity &&
-                    currentDensity.confidence !== "unavailable"
-                      ? currentDensity.level
-                      : "unknown"
-                  ]
-                }
-              </span>
-            </div>
-          </section>
-          <section className="card arrivals-card">
-            <div className="section-title">
-              <h2>Yaxınlaşan avtobuslar</h2>
-              <Clock3 size={17} />
-            </div>
-            <p className="section-caption">
-              Seçilmiş dayanacağa təxmini çatma vaxtı
-            </p>
-            {error && (
-              <p role="alert" className="inline-error">
-                {error}
-              </p>
-            )}
-            {loading ? (
-              <div className="empty-state">Gəliş vaxtları yüklənir…</div>
-            ) : arrivals.length ? (
-              arrivals.map((a, index) => (
-                <div className="arrival-item" key={a.bus_id}>
-                  <span className={`arrival-icon ${index === 0 ? "next" : ""}`}>
-                    <BusFront size={21} />
-                  </span>
-                  <div className="arrival-detail">
-                    <strong>
-                      {route?.code}
-                      <small> · {a.plate}</small>
-                    </strong>
-                    <span className={`crowd-label ${a.crowd_level}`}>
-                      <i />
-                      {levelText[a.crowd_level]}
-                    </span>
-                  </div>
-                  <div className="eta">
-                    <strong>{Math.ceil(a.eta_minutes)}</strong>
-                    <span>dəqiqə</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="empty-state">
-                <Clock3 size={24} />
-                <p>Hazırda yaxınlaşan avtobus yoxdur.</p>
-                <small>Mövqelər yeniləndikcə gəlişlər görünəcək.</small>
-              </div>
-            )}
-            <div className="arrival-footnote">
-              <i />
-              GPS əsasında · hər 10 saniyədə yenilənir
-            </div>
-          </section>
-        </aside>
-        <section className="card report-card">
-          <div className="report-copy">
-            <span className="soft-icon">
-              <Users size={21} />
-            </span>
-            <div>
-              <h2>Avtobusda vəziyyət necədir?</h2>
-              <p>Bir toxunuşla sıxlığı bildirin.</p>
-            </div>
-          </div>
-          <label className="sr-only" htmlFor="report-bus">
-            Hesabat üçün avtobus
-          </label>
-          <select
-            id="report-bus"
-            className="bus-select"
-            value={reportBus || routeBuses[0]?.id || ""}
-            onChange={(event) => setReportBus(Number(event.target.value))}
+    <div className="passenger-app">
+      <a href="#passenger-content" className="p-skip">
+        Əsas məzmuna keç
+      </a>
+      <header className="p-header">
+        <a href="#passenger" className="p-brand" aria-label="IDDA ana səhifə">
+          <RouteIcon size={34} strokeWidth={2} aria-hidden="true" />
+          <span>
+            idda<span>.</span>
+          </span>
+        </a>
+        <nav className="p-product-nav" aria-label="Sərnişin naviqasiyası">
+          <a href="#passenger" className="active" aria-current="page">
+            <BusFront size={28} strokeWidth={1.5} aria-hidden="true" />
+            Avtobuslar
+          </a>
+          <a href="#routes">
+            <RouteIcon size={28} strokeWidth={1.5} aria-hidden="true" />
+            Marşrutlar
+          </a>
+          <button onClick={() => scrollTo("crowd-report")}>
+            <Users size={28} strokeWidth={1.5} aria-hidden="true" />
+            Sıxlığı bildir
+          </button>
+        </nav>
+        <div className="p-header-tools">
+          <span className="p-city">
+            <Globe2 size={18} aria-hidden="true" />
+            Bakı, Azərbaycan
+          </span>
+          <button
+            className="p-menu-button"
+            onClick={openMenu}
+            aria-label="Naviqasiya menyusunu aç"
+            aria-haspopup="dialog"
+            aria-expanded={menuOpen}
           >
-            {routeBuses.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.plate}
-              </option>
-            ))}
-          </select>
-          <div className="report-buttons">
-            {[
-              {
-                level: 1,
-                text: "Boş",
-                className: "low",
-                icon: <Check size={18} />,
-              },
-              {
-                level: 3,
-                text: "Orta",
-                className: "medium",
-                icon: <Users size={18} />,
-              },
-              {
-                level: 5,
-                text: "Dolu",
-                className: "high",
-                icon: <BusFront size={18} />,
-              },
-            ].map((item) => (
-              <button
-                key={item.level}
-                className={item.className}
-                disabled={sending || !routeBuses.length}
-                onClick={() => void report(item.level)}
-              >
-                {item.icon}
-                {item.text}
-              </button>
-            ))}
+            <Menu size={18} aria-hidden="true" />
+            <CircleUserRound size={28} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      <section className="p-search-band" aria-label="Səfər axtarışı">
+        <form className="p-search-desktop" onSubmit={showMap}>
+          <label className="p-search-segment">
+            Marşrut
+            <select
+              aria-label="Səfər üçün marşrut"
+              value={selectedRoute}
+              onChange={(event) => setRoute(Number(event.target.value))}
+              disabled={!routes.length}
+            >
+              {routeOptions()}
+            </select>
+          </label>
+          <label className="p-search-segment p-search-stop">
+            Harada gözləyirsiniz?
+            <select
+              id="stop-select"
+              value={selectedStop}
+              onChange={(event) => setStop(Number(event.target.value))}
+              disabled={!routes.length}
+            >
+              {stopOptions()}
+            </select>
+          </label>
+          <div className="p-search-now">
+            <span>Nə vaxt?</span>
+            <strong>İndi</strong>
           </div>
-          {notice && (
-            <div className="report-notice" role="status">
-              <Send size={14} />
-              {notice}
-            </div>
-          )}
+          <button
+            type="submit"
+            className="p-search-orb"
+            aria-label="Seçilmiş dayanacağı xəritədə göstər"
+            disabled={!currentStop}
+          >
+            <Search size={22} aria-hidden="true" />
+          </button>
+        </form>
+        <button
+          className="p-search-mobile"
+          onClick={openSearch}
+          aria-haspopup="dialog"
+          aria-expanded={searchOpen}
+        >
+          <Search size={22} aria-hidden="true" />
+          <span>
+            <strong>Harada gözləyirsiniz?</strong>
+            <small>
+              <span>{route?.code || "Marşrut seçin"}</span>
+              <i />
+              <span className="p-search-stop-name">
+                {currentStop?.name || "Dayanacaq seçin"}
+              </span>
+              <i />
+              <span>İndi</span>
+            </small>
+          </span>
+          <span className="p-mobile-search-end">
+            <ChevronDown size={18} aria-hidden="true" />
+          </span>
+        </button>
+      </section>
+
+      <main className="p-content" id="passenger-content">
+        <div className="p-intro">
+          <div>
+            <h1>Şəhər sənin ritmində.</h1>
+            <p>Növbəti avtobusunu tap. Daha rahat yola çıx.</p>
+          </div>
+          <span
+            className={`p-connection ${transit.connected ? "" : "offline"}`}
+          >
+            {transit.connected ? (
+              <Wifi size={16} aria-hidden="true" />
+            ) : (
+              <WifiOff size={16} aria-hidden="true" />
+            )}
+            {transit.connected ? "Canlı bağlantı" : "Yenidən bağlanır…"}
+          </span>
+        </div>
+        {transit.error && (
+          <div className="p-error" role="alert">
+            <span>{transit.error}</span>
+            <button onClick={() => void transit.refresh()}>
+              Yenidən yoxla
+            </button>
+          </div>
+        )}
+        <section className="p-routes" aria-label="Demo marşrut seçimi">
+          {transit.loading
+            ? [1, 2, 3].map((id) => (
+                <div
+                  key={id}
+                  className="p-route-skeleton"
+                  aria-label="Marşrut yüklənir"
+                />
+              ))
+            : routes.map((item) => {
+                const d = density.find((value) => value.route_id === item.id);
+                const level =
+                  d && d.confidence !== "unavailable" ? d.level : "unknown";
+                const selected = item.id === selectedRoute;
+                return (
+                  <button
+                    key={item.id}
+                    className={`p-route-card ${selected ? "selected" : ""}`}
+                    aria-pressed={selected}
+                    onClick={() => setRoute(item.id)}
+                  >
+                    <div className="p-route-visual">
+                      <RoutePreview
+                        stops={stops[item.id] || []}
+                        selected={selected}
+                      />
+                      <span className="p-route-badge">
+                        {selected ? (
+                          <>
+                            <Check size={12} aria-hidden="true" />
+                            Seçilmiş xətt
+                          </>
+                        ) : (
+                          "Demo xətti"
+                        )}
+                      </span>
+                      <span className="p-preview-bus">
+                        <BusFront size={18} aria-hidden="true" />
+                      </span>
+                    </div>
+                    <div className="p-route-meta">
+                      <div>
+                        <strong>{item.name.replace(" (demo)", "")}</strong>
+                        <span>
+                          {item.code} · {(stops[item.id] || []).length}{" "}
+                          dayanacaq
+                        </span>
+                      </div>
+                      <span className={`p-crowd ${level}`}>
+                        <i />
+                        {levelText[level]}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
         </section>
+        {!transit.loading && !routes.length && (
+          <div className="p-no-routes">
+            <BusFront size={32} aria-hidden="true" />
+            <h2>Marşrutlar hələ yüklənməyib</h2>
+            <p>Bağlantını yoxlayıb yenidən cəhd edin.</p>
+            <button onClick={() => void transit.refresh()}>
+              Yenidən yoxla
+            </button>
+          </div>
+        )}
+
+        <div className="p-section-title">
+          <h2>Səfərinə yaxından bax</h2>
+          <span>
+            <Radio size={14} aria-hidden="true" />
+            GPS və sıxlıq · demo
+          </span>
+        </div>
+        <div className="p-journey-grid">
+          <div className="p-map-column">
+            <section id="passenger-map" aria-label="Səfərin xəritəsi">
+              {transit.loading || !routes.length ? (
+                <div className="p-map-skeleton" role="status">
+                  Xəritə məlumatları hazırlanır…
+                </div>
+              ) : (
+                <TransitMap
+                  variant="passenger"
+                  focusRequest={focusRequest}
+                  catalog={transit.catalog}
+                  routes={routes}
+                  stops={stops}
+                  buses={buses}
+                  density={density}
+                  selectedRoute={selectedRoute}
+                  selectedStop={selectedStop}
+                  onStop={setStop}
+                />
+              )}
+            </section>
+            <div className="p-place-summary">
+              <span className="p-place-icon">
+                <MapPin size={24} strokeWidth={1.5} aria-hidden="true" />
+              </span>
+              <div>
+                <h3>{currentStop?.name || "Dayanacağınızı seçin"}</h3>
+                <p>
+                  {route?.code || "Demo marşrut"} · {routeStops.length}{" "}
+                  dayanacaq · Bakı
+                </p>
+              </div>
+              <span className={`p-crowd ${crowdLevel}`}>
+                <i />
+                {levelText[crowdLevel]}
+              </span>
+            </div>
+            <div className="p-community">
+              <MessageCircle size={28} strokeWidth={1.4} aria-hidden="true" />
+              <div>
+                <h3>Rahat səfər, birlikdə.</h3>
+                <p>
+                  Kiçik bir hesabatın başqasının səfərini asanlaşdıra bilər.
+                </p>
+              </div>
+              <button
+                onClick={() => scrollTo("crowd-report")}
+                aria-label="Sıxlıq hesabatı bölməsinə keç"
+              >
+                <ArrowUpRight size={20} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+          <aside className="p-rail">
+            <section className="p-arrivals">
+              <div className="p-card-heading">
+                <h2>Yaxınlaşan avtobuslar</h2>
+                <Clock3 size={20} strokeWidth={1.5} aria-hidden="true" />
+              </div>
+              <p className="p-card-description">
+                Seçdiyin dayanacağa təxmini çatma vaxtı
+              </p>
+              {error && (
+                <p className="p-inline-error" role="alert">
+                  {error}
+                </p>
+              )}
+              {loading || transit.loading ? (
+                <div className="p-arrival-loading" role="status">
+                  <span />
+                  <span />
+                  Gəliş vaxtları yüklənir…
+                </div>
+              ) : arrivals.length ? (
+                <div className="p-arrival-list">
+                  {arrivals.map((arrival, index) => (
+                    <article className="p-arrival" key={arrival.bus_id}>
+                      <span className="p-bus-icon">
+                        <BusFront
+                          size={24}
+                          strokeWidth={1.5}
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <div>
+                        <div className="p-arrival-title">
+                          <strong>{route?.code}</strong>
+                          {index === 0 && <span>Ən yaxın</span>}
+                        </div>
+                        <small>{arrival.plate}</small>
+                        <span className={`p-crowd ${arrival.crowd_level}`}>
+                          <i />
+                          {levelText[arrival.crowd_level]}
+                        </span>
+                      </div>
+                      <div className="p-eta">
+                        <strong>{Math.ceil(arrival.eta_minutes)}</strong>
+                        <span>dəqiqə</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-empty">
+                  <Clock3 size={30} strokeWidth={1.3} aria-hidden="true" />
+                  <strong>Bir azdan yenidən bax</strong>
+                  <p>Bu dayanacağa yaxınlaşan avtobus hələ görünmür.</p>
+                  <button onClick={openSearch}>
+                    Başqa dayanacaq seç
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </button>
+                </div>
+              )}
+              <p className="p-update-note">
+                <span />
+                Hər 10 saniyədə yenilənir · demo GPS
+              </p>
+            </section>
+            <section className="p-report" id="crowd-report">
+              <div className="p-card-heading">
+                <h2>Avtobusun necədir?</h2>
+                <Users size={20} strokeWidth={1.5} aria-hidden="true" />
+              </div>
+              <p className="p-card-description">
+                Bir toxunuşla sıxlığı bildir.
+              </p>
+              <label htmlFor="report-bus">
+                Olduğun avtobus
+                <select
+                  id="report-bus"
+                  value={reportBus || routeBuses[0]?.id || ""}
+                  disabled={!routeBuses.length}
+                  onChange={(event) => setReportBus(Number(event.target.value))}
+                >
+                  {routeBuses.map((bus) => (
+                    <option key={bus.id} value={bus.id}>
+                      {bus.plate} · {route?.code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="p-report-buttons">
+                {[
+                  {
+                    level: 1,
+                    text: "Boş",
+                    icon: <Check size={20} aria-hidden="true" />,
+                  },
+                  {
+                    level: 3,
+                    text: "Orta",
+                    icon: <Users size={20} aria-hidden="true" />,
+                  },
+                  {
+                    level: 5,
+                    text: "Dolu",
+                    icon: <BusFront size={20} aria-hidden="true" />,
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.level}
+                    disabled={sending || !routeBuses.length}
+                    onClick={() => void report(item.level)}
+                    aria-label={`${item.text} sıxlıq hesabatı göndər`}
+                  >
+                    {item.icon}
+                    <span>{item.text}</span>
+                  </button>
+                ))}
+              </div>
+              {sending && (
+                <p className="p-report-feedback" role="status">
+                  Hesabat göndərilir…
+                </p>
+              )}
+              {notice && (
+                <p
+                  className={`p-report-feedback ${notice.success ? "success" : "error"}`}
+                  role={notice.success ? "status" : "alert"}
+                >
+                  {notice.success && <Check size={16} aria-hidden="true" />}
+                  {notice.text}
+                </p>
+              )}
+              <p className="p-report-footnote">
+                Sənin hesabatın. Daha məlumatlı bir şəhər.
+              </p>
+            </section>
+          </aside>
+        </div>
+        <section className="p-discover">
+          <div>
+            <span className="p-discover-icon">
+              <RouteIcon size={28} strokeWidth={1.5} aria-hidden="true" />
+            </span>
+            <h2>Bakını başqa bir xətlə kəşf et.</h2>
+            <p>
+              AYNA-nın rəsmi marşrutlarını, dayanacaqlarını və yol sxemlərini
+              araşdır.
+            </p>
+          </div>
+          <a href="#routes">
+            Rəsmi marşrutlara bax
+            <ArrowRight size={18} aria-hidden="true" />
+          </a>
+        </section>
+      </main>
+
+      <footer className="p-footer">
+        <a href="#passenger" className="p-footer-brand">
+          idda.
+        </a>
+        <span>© {new Date().getFullYear()} IDDA · Bakı üçün birlikdə.</span>
+        <button onClick={() => aboutDialog.current?.showModal()}>
+          Məlumatlar haqqında
+        </button>
+        <span className="p-footer-language">
+          <Globe2 size={16} aria-hidden="true" />
+          Azərbaycan dili
+        </span>
+      </footer>
+      <div className="p-mobile-summary">
+        <div>
+          <span>Seçilmiş dayanacağa</span>
+          <strong>
+            {!loading && nextArrival
+              ? `${Math.ceil(nextArrival.eta_minutes)} dəqiqə`
+              : loading
+                ? "Gəlişlər yüklənir…"
+                : "Gəliş gözlənilir"}
+          </strong>
+        </div>
+        <button onClick={() => showMap()}>
+          <MapPin size={18} aria-hidden="true" />
+          Xəritədə bax
+        </button>
       </div>
-    </>
+
+      <dialog
+        className="p-dialog p-search-dialog"
+        ref={searchDialog}
+        onClose={() => setSearchOpen(false)}
+        aria-labelledby="p-search-title"
+      >
+        <div className="p-dialog-heading">
+          <h2 id="p-search-title">Səfərini planlaşdır</h2>
+          <button
+            onClick={() => searchDialog.current?.close()}
+            aria-label="Axtarışı bağla"
+          >
+            <X size={22} aria-hidden="true" />
+          </button>
+        </div>
+        <form onSubmit={showMap}>
+          <label>
+            Marşrut
+            <select
+              value={selectedRoute}
+              onChange={(event) => setRoute(Number(event.target.value))}
+              disabled={!routes.length}
+            >
+              {routeOptions()}
+            </select>
+          </label>
+          <label>
+            Dayanacaq
+            <select
+              id="mobile-stop-select"
+              value={selectedStop}
+              onChange={(event) => setStop(Number(event.target.value))}
+              disabled={!routes.length}
+            >
+              {stopOptions()}
+            </select>
+          </label>
+          <div className="p-dialog-now">
+            <Clock3 size={20} aria-hidden="true" />
+            <div>
+              <strong>İndi</strong>
+              <p>Gəlişlər demo GPS məlumatlarından hesablanır.</p>
+            </div>
+          </div>
+          <button
+            className="p-dialog-search"
+            type="submit"
+            disabled={!currentStop}
+          >
+            <span>Xəritədə göstər</span>
+            <span className="p-search-orb">
+              <Search size={22} aria-hidden="true" />
+            </span>
+          </button>
+        </form>
+      </dialog>
+      <dialog
+        className="p-dialog p-menu-dialog"
+        ref={menuDialog}
+        onClose={() => setMenuOpen(false)}
+        aria-labelledby="p-menu-title"
+      >
+        <div className="p-dialog-heading">
+          <h2 id="p-menu-title">Haraya baxaq?</h2>
+          <button
+            onClick={() => menuDialog.current?.close()}
+            aria-label="Menyunu bağla"
+          >
+            <X size={22} aria-hidden="true" />
+          </button>
+        </div>
+        <nav aria-label="Əlavə keçidlər">
+          <a href="#passenger" onClick={() => menuDialog.current?.close()}>
+            <BusFront size={22} aria-hidden="true" />
+            Sərnişin
+          </a>
+          <a href="#routes" onClick={() => menuDialog.current?.close()}>
+            <RouteIcon size={22} aria-hidden="true" />
+            Rəsmi marşrutlar
+          </a>
+          <a href="#operator" onClick={() => menuDialog.current?.close()}>
+            <Users size={22} aria-hidden="true" />
+            Operator paneli
+          </a>
+          <button
+            onClick={() => {
+              menuDialog.current?.close();
+              aboutDialog.current?.showModal();
+            }}
+          >
+            <CircleHelp size={22} aria-hidden="true" />
+            Məlumatlar haqqında
+          </button>
+        </nav>
+      </dialog>
+      <dialog
+        className="p-dialog p-about-dialog"
+        ref={aboutDialog}
+        aria-labelledby="p-about-title"
+      >
+        <div className="p-dialog-heading">
+          <h2 id="p-about-title">Məlumatlar haqqında</h2>
+          <button
+            onClick={() => aboutDialog.current?.close()}
+            aria-label="Məlumat pəncərəsini bağla"
+          >
+            <X size={22} aria-hidden="true" />
+          </button>
+        </div>
+        <p>
+          Bu səhifədəki DEMO xətləri, avtobus mövqeləri və sıxlıq göstəriciləri
+          sınaq üçündür. Gəliş vaxtları simulatorun GPS məlumatlarından
+          hesablanır.
+        </p>
+        <p>
+          Dayanacaq adları və koordinatları OpenData.az mənbəyindəndir. Rəsmi
+          yol sxemləri ayrıca AYNA marşrutları bölməsindədir.
+        </p>
+        <div className="p-about-links">
+          {transit.sources?.sources.map((source) => (
+            <a
+              key={source.key}
+              href={source.dataset_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {source.key === "stops"
+                ? "Dayanacaq koordinatları"
+                : "Gündəlik gediş statistikası"}
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      </dialog>
+    </div>
   );
 }

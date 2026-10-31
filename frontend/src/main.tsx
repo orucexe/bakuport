@@ -67,6 +67,17 @@ function App() {
       setSelectedStop(id);
     }
   }
+  if (page === "passenger") {
+    return (
+      <Passenger
+        transit={transit}
+        selectedRoute={selectedRoute}
+        setRoute={setRoute}
+        selectedStop={selectedStop}
+        setStop={setStop}
+      />
+    );
+  }
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -86,10 +97,9 @@ function App() {
             <span>Marşrutlar</span>
             {page === "routes" && <span className="nav-dot" />}
           </a>
-          <a className={page === "passenger" ? "active" : ""} href="#passenger">
+          <a href="#passenger">
             <BusFront size={19} />
             <span>Sərnişin</span>
-            {page === "passenger" && <span className="nav-dot" />}
           </a>
           <a className={page === "operator" ? "active" : ""} href="#operator">
             <LayoutDashboard size={19} />
@@ -126,11 +136,7 @@ function App() {
           <div className="breadcrumb">
             İş sahəsi <span>/</span>
             <strong>
-              {page === "routes"
-                ? "Rəsmi marşrutlar"
-                : page === "passenger"
-                  ? "Sərnişin paneli"
-                  : "Operator paneli"}
+              {page === "routes" ? "Rəsmi marşrutlar" : "Operator paneli"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -201,14 +207,6 @@ function App() {
             </div>
           ) : page === "routes" ? (
             <OfficialRoutes />
-          ) : page === "passenger" ? (
-            <Passenger
-              transit={transit}
-              selectedRoute={selectedRoute}
-              setRoute={setRoute}
-              selectedStop={selectedStop}
-              setStop={setStop}
-            />
           ) : (
             <Operator
               transit={transit}

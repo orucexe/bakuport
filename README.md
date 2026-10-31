@@ -4,6 +4,8 @@ A runnable hackathon demo for Baku public transport: simulated GPS, passenger cr
 
 The app now bundles **3,600 real stops** and **15,686 daily ride observations for 65 BakuBus route codes** from OpenData.az. Recorded daily rides cover **2026-01-01 through 2026-09-30**. The three moving demo lines (`DEMO-A/B/C`), vehicle plates, live GPS, density samples and density forecasts remain simulated. Each demo line uses ten nearby real stops and three simulated buses. These lines are not official BakuBus route paths. The interface is in Azerbaijani.
 
+The passenger screen follows [DESIGN-airbnb.md](DESIGN-airbnb.md): a white canvas, rose accent, segmented route/stop search, route previews and a Google map beside the arrival/report panel. Mobile search opens a native full-screen dialog. Inter replaces the unavailable licensed Cereal font. Passenger styles are scoped; operator and official-route screens retain their existing design. See the [passenger design system](design-system/idda-passenger/MASTER.md) for tokens and accessibility decisions.
+
 ## Official open-data snapshots
 
 The **[Official routes view](http://localhost:5173/#routes)** now integrates the public AYNA route service: 209 route entries with on-demand directional road geometry, ordered stops, carrier and fares. It does not show fake live vehicles. The server caches source responses and marks stale fallback data. See [real-data source verification](docs/REAL_DATA_SOURCES.md) for endpoints, captured examples, cache behavior and the GPS investigation.
