@@ -42,13 +42,11 @@
 - [x] AYNA 209 routes/directions/stops/fares, cache/errors and source isolation; 48 tests/build/browser pass.
 
 ## Google Maps (user-requested stack change)
-- [x] Google Maps on all views; ignored key/env/build wiring, docs, browser checks and commit complete.
 
 ## Passenger UI (requested follow-up; approximately 45 min)
 - [x] Airbnb passenger UI, scoped styling/maps/reports/sources; build/Edge verified and committed.
 
 ## Official passenger routes (approximately 30 min)
-- [x] AYNA passenger catalog, shapes/directions/stops, separate demo; build/browser verified and committed.
 
 ## Journey planner (approximately 60 min)
 - [x] Replace passenger route gallery with designed origin/destination comboboxes and bus results.
@@ -79,4 +77,4 @@
 - [x] Vercel project/environment, SPA routes, backend URL/WS wiring; frontend production published.
 - [x] Render PostgreSQL blueprint/CORS/driver setup, deployment docs and two config tests.
 - [x] Published github.com/orucexe/bakuport (master); clean checkout: 65 backend tests and frontend checks pass.
-- [ ] Render account authorization/Blueprint launch pending; connect its final URL to Vercel afterward.
+- [x] Connected idda-api.onrender.com to Vercel/custom domain; REST proxy, WS, maps/catalog and real search verified.
