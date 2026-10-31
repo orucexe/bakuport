@@ -5,10 +5,10 @@ Scope: passenger page and passenger-scoped map presentation only.
 
 ## Intent
 - A warm, consumer-facing transit experience with generous spacing and real controls.
-- Preserve route/stop selection, Google Maps, arrival estimates and one-tap reports.
+- Origin/destination search, bus choice, Google Maps, GPS arrival estimates and demo reports.
 - Keep demo GPS and density clearly labeled; do not invent real vehicle data.
 - Operator and official-route views retain their existing appearance.
-- Passenger defaults to official AYNA routes; simulated GPS/reporting is behind an explicit demo switch.
+- Passenger finds direct official bus journeys; simulated GPS/reporting is behind an explicit demo switch.
 
 ## Tokens
 - Canvas #ffffff; ink #222222; body #3f3f3f; muted #6a6a6a.
@@ -20,11 +20,11 @@ Scope: passenger page and passenger-scoped map presentation only.
 - One subtle shadow tier for search/rail/hover; no gradients or decorative blur.
 
 ## Layout and interaction
-- Desktop: 80px top navigation, centered segmented search, route cards, map plus arrival rail.
-- Mobile <744px: compact header, single search pill opening a native modal, stacked cards.
-- A mobile bottom summary reserves safe-area space and scrolls to the map/report controls.
-- Route thumbnails derive from existing stop coordinates; no fictional ratings/photos.
-- Use native labels, selects, buttons and dialogs; preserve Escape/focus behavior.
+- Desktop: 80px navigation, pill origin/destination search, bus results beside map and GPS panel.
+- Mobile <744px: compact header, stacked search fields in a rounded panel, results then map.
+- No route-gallery section or native passenger selects; styled combobox suggestions support keys.
+- Device location is opt-in; bus prediction chips show explicit 5/10/15-minute estimates.
+- Use labeled inputs/buttons and native menu dialog; preserve Escape/focus behavior.
 - 44px minimum controls, 48px primary targets; visible keyboard focus and reduced motion.
 - Accent circles use white icons; readable ink text and semantic density labels accompany color.
 - Skill's generic transit palette/font output was rejected in favor of the supplied design file.

@@ -5,15 +5,15 @@
 1. Copy `.env.example` to `.env`; keep `DEMO_MODE=true`. No LLM key is needed.
 2. Run `docker compose up --build`. Wait for the simulator to log GPS ticks.
 3. Open passenger and operator pages in separate tabs: `http://localhost:5173/#passenger` and `http://localhost:5173/#operator`.
-4. The passenger page opens with real AYNA routes. Click `Demo rejiminə keç`, then select `DEMO-A` for the live simulator flow. Confirm the health endpoint reports a one-minute alert window. Leave surge off and start with no open alerts. If a previous demo alert exists, disable surge and allow roughly three minutes for recovery before presenting.
+4. The passenger page opens with origin/destination search. Click `Demo səfərini yoxla` to prefill a sample trip, press `Avtobus tap`, then select the `DEMO-A` option. Confirm the health endpoint reports a one-minute alert window. Leave surge off and start with no open alerts. If a previous demo alert exists, disable surge and allow roughly three minutes for recovery before presenting.
 5. Check the map tiles, three routes, nine live buses and forecast. Have Swagger ready at `http://localhost:8000/docs`.
 
 ## 0:00–0:30 — Passenger view
 
 - Introduce the project: real-time GPS plus passenger reports help people choose less crowded buses.
-- Show the official stop layer and search for a real stop. Explain that stop coordinates and daily ride counts are official open data; demo paths, vehicles and live density remain simulated.
-- First show an actual AYNA route on the passenger page, switch direction and highlight a stop. Explain that no working public GPS feed was verified. Click `Demo rejiminə keç` for moving buses, ETA and reports. The separate `/#routes` source explorer remains available.
-- Select a route and stop. Point to moving buses, the selected stop and sorted arrival times.
+- Show `Haradan` and `Haraya`, use the designed suggestions and `Avtobus tap`. Select a bus result to show its official road path and boarding/alighting stops. Explain that no live public bus GPS feed was verified; plan time excludes waiting.
+- Optionally enable device live location and demonstrate its map marker; stop it before switching modes.
+- Click `Demo səfərini yoxla`, press `Avtobus tap`, choose `DEMO-A`. Point to moving buses and GPS ETA. Choose a vehicle and `+5 dəq` to show its predicted location. Explain the simulation label and prediction uncertainty.
 
 ## 0:30–0:55 — Crowd report
 

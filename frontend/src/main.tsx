@@ -12,7 +12,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useTransit } from "./useTransit";
-import Passenger from "./pages/OfficialPassenger";
+import Passenger from "./pages/JourneyPlanner";
 import Operator from "./pages/Operator";
 import OfficialRoutes from "./pages/OfficialRoutes";
 import SourceNotice from "./components/SourceNotice";
@@ -29,15 +29,8 @@ function App() {
         : "passenger",
   );
   const [selectedRoute, setSelectedRoute] = useState(1);
-  const [selectedStop, setSelectedStop] = useState(0);
   const [help, setHelp] = useState(false);
   const [clock, setClock] = useState(new Date());
-  useEffect(() => {
-    const stops = transit.stops[selectedRoute];
-    if (stops?.length && !stops.some((stop) => stop.id === selectedStop)) {
-      setSelectedStop(stops[Math.min(5, stops.length - 1)].id);
-    }
-  }, [transit.stops, selectedRoute, selectedStop]);
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 10000);
     const hash = () =>
@@ -56,27 +49,9 @@ function App() {
   }, []);
   function setRoute(id: number) {
     setSelectedRoute(id);
-    setSelectedStop(transit.stops[id]?.[5]?.id || 0);
-  }
-  function setStop(id: number) {
-    const route = transit.routes.find((r) =>
-      transit.stops[r.id]?.some((s) => s.id === id),
-    );
-    if (route) {
-      setSelectedRoute(route.id);
-      setSelectedStop(id);
-    }
   }
   if (page === "passenger") {
-    return (
-      <Passenger
-        transit={transit}
-        selectedRoute={selectedRoute}
-        setRoute={setRoute}
-        selectedStop={selectedStop}
-        setStop={setStop}
-      />
-    );
+    return <Passenger transit={transit} />;
   }
   return (
     <div className="app-shell">

@@ -80,6 +80,19 @@ class BusPosition(Base):
     __table_args__ = (Index("ix_bus_positions_bus_ts", "bus_id", "ts"),)
 
 
+class VehicleGPS(Base):
+    __tablename__ = "vehicle_gps"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vehicle_id: Mapped[str] = mapped_column(String(40))
+    route_source_id: Mapped[int]
+    direction_id: Mapped[int]
+    lat: Mapped[float]
+    lng: Mapped[float]
+    speed_kmh: Mapped[float]
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    __table_args__ = (Index("ix_vehicle_gps_route_time", "route_source_id", "direction_id", "ts"),)
+
+
 class CrowdReport(Base):
     __tablename__ = "crowd_reports"
     id: Mapped[int] = mapped_column(primary_key=True)

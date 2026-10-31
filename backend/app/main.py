@@ -20,6 +20,7 @@ from .services.open_data import import_open_data
 from .routers.open_data import router as open_data_router
 from .routers.official_routes import router as official_routes_router
 from .services.official_routes import OfficialRoutes, bootstrap_official_cache
+from .routers.journeys import router as journeys_router
 
 log = logging.getLogger(__name__)
 
@@ -100,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(analytics_router)
     app.include_router(open_data_router)
     app.include_router(official_routes_router)
+    app.include_router(journeys_router)
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 

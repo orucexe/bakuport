@@ -62,11 +62,7 @@
 - Old BakuBus GPS endpoint returned 404; no unverified GPS feed was enabled.
 
 ## Google Maps (user-requested stack change)
-- [x] Replace Leaflet/OSM with Google Maps on passenger, operator and official views.
-- [x] Put the supplied browser key in ignored .env; wire Vite and Docker build args.
-- [x] Real Google map/browser checks pass: moving buses, search, directions, fullscreen/mobile.
-- [x] Document browser key setup; production build passes; key excluded from tracked files.
-- [x] Commit implementation and keep the local application running.
+- [x] Google Maps on all views; ignored key/env/build wiring, docs, browser checks and commit complete.
 
 ## Passenger UI (requested follow-up; approximately 45 min)
 - [x] Apply ui-ux-pro-max with DESIGN-airbnb.md as the visual source of truth.
@@ -75,6 +71,10 @@
 - [x] Build, Edge 320-1440px layouts, dialogs, reports, API error/empty/retry and existing views pass; commit.
 
 ## Official passenger routes (approximately 30 min)
-- [x] Default to AYNA catalog, real directional road shapes/stops; preserve passenger design.
-- [x] Keep simulator behind explicit demo switch; no invented official GPS/ETA/crowding.
-- [x] Build and Edge: selection/directions/stops, 320-1440px, demo reports, failures/retry/stale pass; documented and committed.
+- [x] AYNA passenger catalog, shapes/directions/stops, separate demo; build/browser verified and committed.
+
+## Journey planner (approximately 60 min)
+- [x] Replace passenger route gallery with designed origin/destination comboboxes and bus results.
+- [x] Direct-route search via nearby AYNA stops; explicit walking bounds, no invented transfers.
+- [x] Opt-in device live location; GPS ingestion, freshness-aware ETA and future bus positions.
+- [x] 54 tests, build, real search, demo GPS/predictions, permissions/errors/320-1440px verified; documented and committed.
