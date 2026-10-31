@@ -11,20 +11,13 @@
 - Omit optional anomaly detection and English UI toggle.
 
 ## 1. Foundation (0-20 min)
-- [x] Compose, database schema, seed, env example.
-- [x] GPS ingestion, live websocket, simulator and basic moving map.
-- [x] Verify the thin slice and commit (local API/WS smoke and frontend build).
+- [x] Compose/schema/seed/env, GPS/WS/simulator/moving map verified and committed.
 
 ## 2. Backend (20-45 min)
-- [x] Complete REST endpoints, typed Swagger responses and validated ingestion.
-- [x] Route projection ETA with recent smoothed speed.
-- [x] Minute density, confidence, persistent alert state and hysteresis.
-- [x] Surge controls, websocket events; 22 backend tests passed; commit.
+- [x] REST/Swagger/validation, projected ETA, density/alerts/hysteresis, surge/WS; 22 tests and commit.
 
 ## 3. Frontend (45-70 min)
-- [x] Passenger selectors, arrivals and crowd buttons.
-- [x] Operator colored routes, alerts and history chart.
-- [x] Reconnection, loading/error/empty states; build and real Edge desktop/mobile smoke passed.
+- [x] Passenger, operator, reconnect/error/empty states; build and Edge desktop/mobile pass.
 
 ## 4. AI (70-80 min)
 - [x] Nonblocking recommendation with deterministic fallback.
@@ -35,7 +28,6 @@
 - [x] GPS-to-arrivals integration and AI failure/nonblocking tests.
 - [x] README, architecture, env guide, typed Swagger and three-minute DEMO.md.
 - [x] Final build, tests, live surge rehearsal and fresh local database startup.
-- [x] Update checklist, record verification limits and commit everything.
 
 ## Verification record
 - Initial gate: 34 tests, build, desktop/mobile, GPS/report/alert/reconnect/error flows passed.
@@ -78,3 +70,11 @@
 - [x] Direct-route search via nearby AYNA stops; explicit walking bounds, no invented transfers.
 - [x] Opt-in device live location; GPS ingestion, freshness-aware ETA and future bus positions.
 - [x] 54 tests, build, real search, demo GPS/predictions, permissions/errors/320-1440px verified; documented and committed.
+
+## Operator Airtable UI (approximately 40 min)
+- [x] DESIGN-airtable.md operator shell/cards/charts; map, route/surge and statistics preserved.
+- [x] Edge desktop/mobile/navigation/surge/tables/source dialog and build verified; documented and committed.
+
+## Passenger mobile-first follow-up
+- [x] Mobile baseline, styled suggestions, 48px actions; tablet/desktop progressive layout.
+- [x] Edge 320-1440px/landscape, keyboard/pickers/search/route finder and build pass.

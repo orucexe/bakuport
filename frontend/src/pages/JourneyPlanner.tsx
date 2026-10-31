@@ -24,6 +24,7 @@ import type { Transit } from "../useTransit";
 import type { Journey, Vehicle } from "./journeyTypes";
 import "./passenger.css";
 import "./journey.css";
+import "./passenger-responsive.css";
 
 export default function JourneyPlanner({ transit }: { transit: Transit }) {
   const [origin, setOrigin] = useState<Place | null>(null);

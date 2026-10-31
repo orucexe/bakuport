@@ -34,6 +34,9 @@ export default function Operator({
   const [forecast, setForecast] = useState<Forecast | null>(null);
   const [error, setError] = useState("");
   const [forecastError, setForecastError] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [retry, setRetry] = useState(0);
   const [busy, setBusy] = useState(false);
   const route = routes.find((r) => r.id === selectedRoute);
   const live = buses.filter(
@@ -47,14 +50,18 @@ export default function Operator({
     let active = true;
     setHistory([]);
     setForecast(null);
-    setError("");
+    setHistoryError("");
+    setHistoryLoading(true);
     setForecastError("");
     api<Density[]>(`/operator/density/${selectedRoute}/history?minutes=60`)
       .then((data) => {
         if (active) setHistory(data);
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) setHistoryError(err.message);
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false);
       });
     api<Forecast>(`/operator/forecast/${selectedRoute}`)
       .then((data) => {
@@ -66,7 +73,7 @@ export default function Operator({
     return () => {
       active = false;
     };
-  }, [selectedRoute, densityVersion]);
+  }, [selectedRoute, densityVersion, retry]);
   async function toggleSurge() {
     setBusy(true);
     setError("");
@@ -84,53 +91,54 @@ export default function Operator({
   }
   return (
     <>
-      <div className="page-title">
+      <div className="page-title" id="a-overview">
         <div>
-          <div className="eyebrow">OPERATOR PANELİ</div>
-          <h1>
-            Şəbəkənin nəbzi<span>.</span>
-          </h1>
-          <p>Canlı vəziyyət, aydın qərarlar, daha rahat şəhər.</p>
+          <div className="eyebrow">BAKI · OPERATOR İŞ SAHƏSİ</div>
+          <h1>Şəbəkəyə aydın baxış.</h1>
+          <p>Avtobuslar, sıxlıq və qərarlar. Hamısı bir iş sahəsində.</p>
         </div>
         <span className="operator-tag">
           <Activity size={15} />
-          Canlı monitorinq
+          Əməliyyat icmalı
         </span>
       </div>
       <div className="metric-grid">
         {[
           {
-            title: "Aktiv marşrutlar",
+            title: "İzlənən demo xətlər",
             value: routes.length,
             note: "Sınaq xətləri · real dayanacaqlar",
             icon: <Layers size={20} />,
-            color: "teal",
+            color: "cream",
           },
           {
             title: "Canlı avtobuslar",
             value: live,
             note: `${buses.length} avtobusdan GPS qəbul edilir`,
             icon: <BusFront size={20} />,
-            color: "blue",
+            color: "forest",
           },
           {
-            title: "Orta sıxlıq",
-            value: average === null ? "—" : `${average}%`,
+            title: "Orta sıxlıq indeksi",
+            value: average === null ? "—" : `${average}/100`,
             note: known.length
               ? `${known.length} marşrut üzrə ölçülüb`
               : "Canlı məlumat gözlənilir",
             icon: <Users size={20} />,
-            color: "amber",
+            color: "peach",
           },
           {
             title: "Aktiv xəbərdarlıqlar",
             value: alerts.length,
             note: `${health?.alert_window_minutes ?? 10} dəqiqəlik davamlı sıxlıq qaydası`,
             icon: <AlertTriangle size={20} />,
-            color: "red",
+            color: alerts.length ? "coral" : "navy",
           },
         ].map((metric) => (
-          <section className="card metric" key={metric.title}>
+          <section
+            className={`card metric metric-${metric.color}`}
+            key={metric.title}
+          >
             <div>
               <span>{metric.title}</span>
               <strong>{metric.value}</strong>
@@ -141,7 +149,14 @@ export default function Operator({
         ))}
       </div>
       <div className="operator-layout">
-        <section className="operator-map">
+        <section className="operator-map" id="a-network">
+          <div className="a-band-heading">
+            <div>
+              <span className="a-eyebrow">01 / ŞƏBƏKƏ</span>
+              <h2>Hərəkəti bir baxışda izlə.</h2>
+            </div>
+            <span className="a-small-label">Canlı GPS · demo</span>
+          </div>
           <TransitMap
             catalog={transit.catalog}
             routes={routes}
@@ -250,19 +265,63 @@ export default function Operator({
             </p>
           )}
         </section>
-        <section className="card history-card">
+        <section className="card history-card" id="a-analytics">
           <div className="section-title">
             <h2>
               <TrendingUp size={17} /> Sıxlıq dinamikası
             </h2>
             <span className="subtle-tag">Son 60 dəqiqə · {route?.code}</span>
           </div>
-          <DensityChart history={history} />
+          {historyError ? (
+            <div className="a-chart-error" role="alert">
+              <p>{historyError}</p>
+              <button
+                className="a-secondary"
+                onClick={() => setRetry((value) => value + 1)}
+              >
+                Yenidən yoxla
+              </button>
+            </div>
+          ) : historyLoading ? (
+            <div className="chart-empty" role="status">
+              Sıxlıq tarixçəsi yüklənir…
+            </div>
+          ) : (
+            <DensityChart history={history} theme="airtable" />
+          )}
           <p className="chart-note">
             {history.some((d) => d.synthetic)
               ? "Qrafik işarələnmiş sintetik demo tarixçəsini də ehtiva edir."
               : "Canlı ölçmələr · sıxlıq 0–100 aralığında."}
           </p>
+          {!historyLoading && !historyError && history.length > 0 && (
+            <details className="a-data-table">
+              <summary>Sıxlıq rəqəmlərinə bax</summary>
+              <div>
+                <table>
+                  <caption>
+                    {route?.code} · son saatın sıxlıq göstəriciləri
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Vaxt</th>
+                      <th scope="col">İndeks / 100</th>
+                      <th scope="col">Mənbə</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((point, index) => (
+                      <tr key={`${point.ts}-${index}`}>
+                        <td>{timeLabel(point.ts)}</td>
+                        <td>{Math.round(point.score)}</td>
+                        <td>{point.synthetic ? "Sintetik" : "Demo ölçmə"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
         </section>
         <section className="card forecast-card">
           <div className="section-title">
@@ -272,11 +331,17 @@ export default function Operator({
             <span className="subtle-tag purple">Növbəti 60 dəq.</span>
           </div>
           {forecastError ? (
-            <div className="chart-empty" role="status">
-              {forecastError}
+            <div className="a-chart-error" role="alert">
+              <p>{forecastError}</p>
+              <button
+                className="a-secondary"
+                onClick={() => setRetry((value) => value + 1)}
+              >
+                Yenidən yoxla
+              </button>
             </div>
           ) : (
-            <ForecastChart forecast={forecast} />
+            <ForecastChart forecast={forecast} theme="airtable" />
           )}
           <p className="chart-note">
             Saat və həftənin gününə əsaslanan statistik model
@@ -285,8 +350,37 @@ export default function Operator({
               : ""}
             .
           </p>
+          {forecast && !forecastError && (
+            <details className="a-data-table">
+              <summary>Proqnoz rəqəmlərinə bax</summary>
+              <div>
+                <table>
+                  <caption>
+                    {route?.code} · növbəti saatın təxmini sıxlığı
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Vaxt</th>
+                      <th scope="col">İndeks / 100</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {forecast.points.map((point) => (
+                      <tr key={point.ts}>
+                        <td>{timeLabel(point.ts)}</td>
+                        <td>{Math.round(point.score)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
         </section>
-        <section className="card alerts-card">
+        <section
+          className={`card alerts-card ${alerts.length ? "has-alerts" : ""}`}
+          id="a-alerts"
+        >
           <div className="section-title">
             <h2>
               <AlertTriangle size={17} /> Aktiv xəbərdarlıqlar{" "}
@@ -332,7 +426,16 @@ export default function Operator({
           )}
         </section>
       </div>
-      <RidershipPanel />
+      <section className="a-ridership-band" id="a-ridership">
+        <div className="a-band-heading">
+          <div>
+            <span className="a-eyebrow">02 / RƏSMİ STATİSTİKA</span>
+            <h2>Gündəlik gedişlərə daha yaxından bax.</h2>
+          </div>
+          <span className="a-small-label">OpenData.az · 2026</span>
+        </div>
+        <RidershipPanel />
+      </section>
     </>
   );
 }

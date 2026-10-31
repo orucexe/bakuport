@@ -13,7 +13,7 @@ import { api } from "../api";
 import type { RidershipHistory, RidershipRoute } from "../types";
 
 const number = (value: number) => value.toLocaleString("az-AZ");
-const day = (value: string) => value.split('-').reverse().join('.');
+const day = (value: string) => value.split("-").reverse().join(".");
 
 export default function RidershipPanel() {
   const [routes, setRoutes] = useState<RidershipRoute[]>([]);
@@ -180,8 +180,8 @@ export default function RidershipPanel() {
                 <Area
                   type="linear"
                   dataKey="rides"
-                  stroke="#087f81"
-                  fill="#087f8118"
+                  stroke="#0a2e0e"
+                  fill="#a8d8c4"
                   strokeWidth={2}
                   isAnimationActive={false}
                 />

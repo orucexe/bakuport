@@ -12,7 +12,13 @@ import {
 import { timeLabel } from "../api";
 import type { Density, Forecast } from "../types";
 
-export function DensityChart({ history }: { history: Density[] }) {
+export function DensityChart({
+  history,
+  theme,
+}: {
+  history: Density[];
+  theme?: "airtable";
+}) {
   if (!history.length)
     return <div className="chart-empty">Hələ sıxlıq tarixçəsi yoxdur.</div>;
   return (
@@ -61,16 +67,23 @@ export function DensityChart({ history }: { history: Density[] }) {
           <Area
             type="monotone"
             dataKey="score"
-            stroke="#168c89"
+            stroke={theme === "airtable" ? "#181d26" : "#168c89"}
             strokeWidth={2.5}
-            fill="url(#densityFill)"
+            fill={theme === "airtable" ? "#f5e9d4" : "url(#densityFill)"}
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>
     </div>
   );
 }
-export function ForecastChart({ forecast }: { forecast: Forecast | null }) {
+export function ForecastChart({
+  forecast,
+  theme,
+}: {
+  forecast: Forecast | null;
+  theme?: "airtable";
+}) {
   if (!forecast) return <div className="chart-empty">Proqnoz yüklənir…</div>;
   return (
     <div
@@ -107,7 +120,8 @@ export function ForecastChart({ forecast }: { forecast: Forecast | null }) {
           <Line
             type="monotone"
             dataKey="score"
-            stroke="#8361cd"
+            stroke={theme === "airtable" ? "#0a2e0e" : "#8361cd"}
+            isAnimationActive={false}
             strokeWidth={2.5}
             strokeDasharray="5 4"
             dot={{ r: 4, fill: "#fff", strokeWidth: 2 }}

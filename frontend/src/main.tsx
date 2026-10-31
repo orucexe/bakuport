@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useTransit } from "./useTransit";
 import Passenger from "./pages/JourneyPlanner";
-import Operator from "./pages/Operator";
+import OperatorWorkspace from "./pages/OperatorWorkspace";
 import OfficialRoutes from "./pages/OfficialRoutes";
 import SourceNotice from "./components/SourceNotice";
 import { GoogleMapsProvider } from "./components/GoogleMaps";
@@ -53,6 +53,15 @@ function App() {
   if (page === "passenger") {
     return <Passenger transit={transit} />;
   }
+  if (page === "operator") {
+    return (
+      <OperatorWorkspace
+        transit={transit}
+        selectedRoute={selectedRoute}
+        setRoute={setRoute}
+      />
+    );
+  }
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -76,10 +85,9 @@ function App() {
             <BusFront size={19} />
             <span>Sərnişin</span>
           </a>
-          <a className={page === "operator" ? "active" : ""} href="#operator">
+          <a href="#operator">
             <LayoutDashboard size={19} />
             <span>Operator</span>
-            {page === "operator" && <span className="nav-dot" />}
           </a>
         </nav>
         <div className="sidebar-bottom">
@@ -180,14 +188,8 @@ function App() {
                 Yenidən cəhd et
               </button>
             </div>
-          ) : page === "routes" ? (
-            <OfficialRoutes />
           ) : (
-            <Operator
-              transit={transit}
-              selectedRoute={selectedRoute}
-              setRoute={setRoute}
-            />
+            <OfficialRoutes />
           )}
           <footer className="page-footer">
             <span>© {new Date().getFullYear()} IDDA · Smart Transit</span>
