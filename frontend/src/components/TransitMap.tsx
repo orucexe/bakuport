@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, memo, useEffect, useId, useMemo, useState } from "react";
 import L from "leaflet";
 import {
   CircleMarker,
@@ -12,6 +12,44 @@ import {
 import { Maximize2, MapPin } from "lucide-react";
 import { levelColor, levelText, utcDate } from "../api";
 import type { Bus, Density, Route, Stop } from "../types";
+
+const CatalogLayer = memo(function CatalogLayer({ stops }: { stops: Stop[] }) {
+  return (
+    <>
+      {stops.map((stop) => (
+        <CircleMarker
+          key={stop.id}
+          center={[stop.lat, stop.lng]}
+          radius={3}
+          pathOptions={{ color: "#668aa0", weight: 1, fillOpacity: 0.45 }}
+        >
+          <Popup>
+            <strong>{stop.name}</strong>
+            <p>Rəsmi dayanacaq · ID {stop.source_id}</p>
+            {stop.stop_type && <p>{stop.stop_type}</p>}
+            <small>Marşrut uyğunluğu bu məlumat dəstində yoxdur.</small>
+          </Popup>
+        </CircleMarker>
+      ))}
+    </>
+  );
+});
+
+function FocusStop({ stop }: { stop: Stop | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (stop) map.setView([stop.lat, stop.lng], 16, { animate: false });
+  }, [map, stop]);
+  return stop ? (
+    <CircleMarker
+      center={[stop.lat, stop.lng]}
+      radius={10}
+      pathOptions={{ color: "#8361cd", weight: 3, fillOpacity: 0.2 }}
+    >
+      <Popup>{stop.name}</Popup>
+    </CircleMarker>
+  ) : null;
+}
 
 function FitRoute({ stops }: { stops: Stop[] }) {
   const map = useMap();
@@ -50,6 +88,7 @@ function busIcon(id: number, color: string) {
   return icons.get(key)!;
 }
 interface Props {
+  catalog?: Stop[];
   routes: Route[];
   stops: Record<number, Stop[]>;
   buses: Bus[];
@@ -60,6 +99,7 @@ interface Props {
   onStop?: (stopId: number) => void;
 }
 export default function TransitMap({
+  catalog = [],
   routes,
   stops,
   buses,
@@ -71,6 +111,23 @@ export default function TransitMap({
 }: Props) {
   const [tileError, setTileError] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(true);
+  const [search, setSearch] = useState("");
+  const [focusedStop, setFocusedStop] = useState<Stop | null>(null);
+  const catalogId = useId();
+  const matches = useMemo(
+    () =>
+      search.trim().length >= 2
+        ? catalog
+            .filter((stop) =>
+              `${stop.name} ${stop.source_id}`
+                .toLocaleLowerCase("az")
+                .includes(search.trim().toLocaleLowerCase("az")),
+            )
+            .slice(0, 7)
+        : [],
+    [catalog, search],
+  );
   const visibleRoutes = operator
     ? routes
     : routes.filter((r) => r.id === selectedRoute);
@@ -101,10 +158,57 @@ export default function TransitMap({
           <Maximize2 size={16} />
         </button>
       </div>
+      {catalog.length > 0 && (
+        <div className="catalog-toolbar">
+          <label className="catalog-toggle" htmlFor={catalogId}>
+            <input
+              id={catalogId}
+              type="checkbox"
+              checked={showCatalog}
+              onChange={(e) => setShowCatalog(e.target.checked)}
+            />
+            {catalog.length.toLocaleString("az-AZ")} real dayanacaq
+          </label>
+          <div className="catalog-search">
+            <label className="sr-only" htmlFor={`${catalogId}-search`}>
+              Rəsmi dayanacaq adı və ya ID-si ilə axtar
+            </label>
+            <input
+              id={`${catalogId}-search`}
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Dayanacaq adı və ya ID…"
+              autoComplete="off"
+            />
+            {search.trim().length >= 2 && (
+              <div className="catalog-results">
+                {matches.length ? (
+                  matches.map((stop) => (
+                    <button
+                      key={stop.id}
+                      onClick={() => {
+                        setFocusedStop(stop);
+                        setSearch("");
+                      }}
+                    >
+                      <strong>{stop.name}</strong>
+                      <small>ID {stop.source_id}</small>
+                    </button>
+                  ))
+                ) : (
+                  <p>Uyğun dayanacaq tapılmadı.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <MapContainer
         center={[40.39, 49.85]}
         zoom={13}
         scrollWheelZoom
+        preferCanvas
         className="transit-map"
       >
         <TileLayer
@@ -116,6 +220,8 @@ export default function TransitMap({
         />
         <FitRoute stops={focusedStops} />
         <ResizeMap />
+        {showCatalog && <CatalogLayer stops={catalog} />}
+        <FocusStop stop={focusedStop} />
         {visibleRoutes.map((route) => {
           const routeStops = stops[route.id] || [];
           const d = density.find((d) => d.route_id === route.id);
@@ -147,7 +253,14 @@ export default function TransitMap({
                 >
                   <Popup>
                     <strong>{stop.name}</strong>
-                    <p>Demo dayanacağı</p>
+                    <p>
+                      {stop.source_id
+                        ? `OpenData.az · ID ${stop.source_id}`
+                        : "Demo dayanacağı"}
+                    </p>
+                    <small>
+                      Demo xəttinə daxil edilib; rəsmi marşrut uyğunluğu deyil.
+                    </small>
                   </Popup>
                 </CircleMarker>
               ))}

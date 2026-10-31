@@ -14,6 +14,7 @@ import {
 import { useTransit } from "./useTransit";
 import Passenger from "./pages/Passenger";
 import Operator from "./pages/Operator";
+import SourceNotice from "./components/SourceNotice";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 
@@ -23,9 +24,15 @@ function App() {
     location.hash === "#operator" ? "operator" : "passenger",
   );
   const [selectedRoute, setSelectedRoute] = useState(1);
-  const [selectedStop, setSelectedStop] = useState(106);
+  const [selectedStop, setSelectedStop] = useState(0);
   const [help, setHelp] = useState(false);
   const [clock, setClock] = useState(new Date());
+  useEffect(() => {
+    const stops = transit.stops[selectedRoute];
+    if (stops?.length && !stops.some((stop) => stop.id === selectedStop)) {
+      setSelectedStop(stops[Math.min(5, stops.length - 1)].id);
+    }
+  }, [transit.stops, selectedRoute, selectedStop]);
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 10000);
     const hash = () =>
@@ -38,7 +45,7 @@ function App() {
   }, []);
   function setRoute(id: number) {
     setSelectedRoute(id);
-    setSelectedStop(transit.stops[id]?.[5]?.id || id * 100 + 6);
+    setSelectedStop(transit.stops[id]?.[5]?.id || 0);
   }
   function setStop(id: number) {
     const route = transit.routes.find((r) =>
@@ -131,10 +138,11 @@ function App() {
             <section className="about-banner" role="status">
               <Activity size={19} />
               <p>
-                <strong>Smart Transit & Crowdsourcing Engine.</strong> Bu, real
-                marşrut məlumatları təqdim etməyən hackathon demosudur. GPS və
-                sıxlıq hesabatları simulatorla yaradılır. Xəritədəki xətlər
-                illüstrativdir.
+                <strong>Smart Transit & Crowdsourcing Engine.</strong>{" "}
+                Dayanacaqlar və gündəlik gediş statistikası OpenData.az
+                mənbələrindəndir. GPS və sıxlıq simulatorla yaradılır. DEMO
+                xətləri yalnız sınaq üçündür; rəsmi marşrut-dayanacaq
+                ardıcıllığı təqdim edilmir.
               </p>
               <button
                 onClick={() => setHelp(false)}
@@ -152,6 +160,7 @@ function App() {
               </button>
             </div>
           )}
+          <SourceNotice info={transit.sources} />
           {transit.loading ? (
             <div className="initial-loading">
               <span className="loading-orbit" />
@@ -189,7 +198,7 @@ function App() {
             <span>© {new Date().getFullYear()} IDDA · Smart Transit</span>
             <span>
               <i />
-              Bütün marşrutlar və göstəricilər demo məqsədlidir.
+              OpenData.az məlumatları · GPS və sıxlıq simulyasiyası
             </span>
           </footer>
         </main>

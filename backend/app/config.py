@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_url: str = "postgresql+psycopg://idda:idda_local_demo@localhost:5432/idda"
     demo_mode: bool = False
+    load_open_data: bool = True
     density_threshold: float = Field(70, ge=1, le=100)
     alert_window_minutes: float = Field(10, gt=0)
     alert_hysteresis: float = Field(10, ge=0)

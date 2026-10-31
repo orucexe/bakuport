@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -15,6 +15,15 @@ def aware(value: datetime) -> datetime:
 
 class Base(DeclarativeBase):
     pass
+
+
+def upgrade_stop_columns(engine) -> None:
+    """Add optional provenance columns to the initial demo schema without dropping data."""
+    columns = {column["name"] for column in inspect(engine).get_columns("stops")}
+    with engine.begin() as connection:
+        for name, declaration in {"source_id": "VARCHAR(30)", "stop_type": "VARCHAR(150)"}.items():
+            if name not in columns:
+                connection.execute(text(f"ALTER TABLE stops ADD COLUMN {name} {declaration}"))
 
 
 def make_database(url: str):

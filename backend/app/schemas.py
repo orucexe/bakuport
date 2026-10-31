@@ -41,6 +41,8 @@ class StopOutput(Output):
     name: str
     lat: float
     lng: float
+    source_id: str | None = None
+    stop_type: str | None = None
 
 
 class PositionOutput(Output):

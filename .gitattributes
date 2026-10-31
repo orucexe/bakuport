@@ -1,0 +1,2 @@
+# Preserve downloaded snapshot bytes for stable provenance hashes.
+backend/data/*.csv -text

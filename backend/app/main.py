@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
 from .config import Settings
-from .db import Base, make_database, utcnow
+from .db import Base, make_database, upgrade_stop_columns, utcnow
 from .live import LiveHub
 from .models import Alert, Bus, BusPosition, Route, RouteStop, Stop
 from .schemas import BusOutput, GPSInput, GPSOutput, HealthOutput, RouteOutput, StopOutput
@@ -16,6 +16,8 @@ from .seed import seed
 from .routers.analytics import router as analytics_router
 from .services.engine import alert_payload, calculate_tick
 from .services.ai import recommendation
+from .services.open_data import import_open_data
+from .routers.open_data import router as open_data_router
 
 log = logging.getLogger(__name__)
 
@@ -29,8 +31,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         Base.metadata.create_all(engine)
+        upgrade_stop_columns(engine)
         with sessions() as session:
             seed(session)
+            if settings.load_open_data:
+                import_open_data(session)
         await run_tick()
         app.state.next_tick = time.monotonic() + 60
         task = asyncio.create_task(analytics_loop())
@@ -87,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.next_tick = time.monotonic() + 60
     app.state.run_tick = run_tick
     app.include_router(analytics_router)
+    app.include_router(open_data_router)
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
@@ -122,7 +128,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/stops", response_model=list[StopOutput], tags=["Stops"], summary="List demo stops")
     def stops():
         with sessions() as session:
-            return list(session.scalars(select(Stop).order_by(Stop.id)))
+            query = select(Stop).order_by(Stop.id)
+            if settings.load_open_data:
+                query = query.where(Stop.source_id.is_not(None))
+            return list(session.scalars(query))
 
     @app.get("/routes/{route_id}/buses", response_model=list[BusOutput], tags=["Routes"], summary="Buses with latest live positions")
     def buses(route_id: int):

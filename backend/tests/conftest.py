@@ -12,7 +12,8 @@ def settings():
 
 @pytest.fixture
 def client(tmp_path):
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'test.db'}", demo_mode=True, _env_file=None)
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'test.db'}", demo_mode=True,
+                        load_open_data=False, _env_file=None)
     app = create_app(settings)
     with TestClient(app) as client:
         yield client

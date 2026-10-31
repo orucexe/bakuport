@@ -11,7 +11,7 @@
 ## 0:00–0:30 — Passenger view
 
 - Introduce the project: real-time GPS plus passenger reports help people choose less crowded buses.
-- Explicitly say that the routes, plates and history are fictional Baku-area demo data.
+- Show the official stop layer and search for a real stop. Explain that stop coordinates and daily ride counts are official open data; demo paths, vehicles and live density remain simulated.
 - Select a route and stop. Point to moving buses, the selected stop and sorted arrival times.
 
 ## 0:30–0:55 — Crowd report
@@ -25,6 +25,7 @@
 - Show the network map, per-route density labels, confidence and current bus count.
 - Explain the score: 60% recency-weighted crowd reports and 40% low speed / stop dwell.
 - Show history and the next-hour statistical forecast. Identify synthetic seed history explicitly.
+- Briefly show the separate actual daily ride chart: 65 route codes, January–September 2026, source links and recorded dates. Clarify that payment validations are not occupancy or unique passengers.
 - Explain that production uses a continuous ten-minute rule, demonstrated here with a one-minute window. Scores are still calculated from actual simulator observations.
 
 ## 1:55–2:35 — Live alert and recommendation

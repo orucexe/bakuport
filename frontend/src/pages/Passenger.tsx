@@ -44,6 +44,7 @@ export default function Passenger({
     setNotice("");
   }, [selectedRoute]);
   useEffect(() => {
+    if (!selectedStop) return;
     let active = true;
     setLoading(true);
     setArrivals([]);
@@ -134,6 +135,7 @@ export default function Passenger({
       <div className="passenger-layout">
         <div className="passenger-main">
           <TransitMap
+            catalog={transit.catalog}
             routes={routes}
             stops={stops}
             buses={buses}

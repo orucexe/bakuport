@@ -8,11 +8,14 @@ import type {
   Position,
   Route,
   Stop,
+  SourceInfo,
 } from "./types";
 
 export function useTransit() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [stops, setStops] = useState<Record<number, Stop[]>>({});
+  const [catalog, setCatalog] = useState<Stop[]>([]);
+  const [sources, setSources] = useState<SourceInfo | null>(null);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [density, setDensity] = useState<Density[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -27,11 +30,13 @@ export function useTransit() {
     if (loadingRef.current) return;
     loadingRef.current = true;
     try {
-      const [rs, ds, als, hs] = await Promise.all([
+      const [rs, ds, als, hs, officialStops, sourceInfo] = await Promise.all([
         api<Route[]>("/routes"),
         api<Density[]>("/operator/density"),
         api<Alert[]>("/operator/alerts"),
         api<Health>("/health"),
+        api<Stop[]>("/stops"),
+        api<SourceInfo>("/data/sources"),
       ]);
       const details = await Promise.all(
         rs.map(async (r) => ({
@@ -42,6 +47,8 @@ export function useTransit() {
       );
       if (!mounted.current) return;
       setRoutes(rs);
+      setCatalog(officialStops.filter((stop) => stop.source_id));
+      setSources(sourceInfo);
       setDensity(ds);
       setAlerts(als);
       setHealth(hs);
@@ -141,6 +148,8 @@ export function useTransit() {
     };
   }, [refresh]);
   return {
+    catalog,
+    sources,
     routes,
     stops,
     buses,

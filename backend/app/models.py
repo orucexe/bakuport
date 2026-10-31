@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, text
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base, utcnow
@@ -25,6 +25,24 @@ class Stop(Base):
     name: Mapped[str] = mapped_column(String(150))
     lat: Mapped[float]
     lng: Mapped[float]
+    source_id: Mapped[str | None] = mapped_column(String(30))
+    stop_type: Mapped[str | None] = mapped_column(String(150))
+
+
+class DailyRidership(Base):
+    __tablename__ = "daily_ridership"
+    route_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    rides: Mapped[int]
+    __table_args__ = (CheckConstraint("rides >= 0"),)
+
+
+class DataImport(Base):
+    __tablename__ = "data_imports"
+    key: Mapped[str] = mapped_column(String(30), primary_key=True)
+    sha256: Mapped[str] = mapped_column(String(64))
+    row_count: Mapped[int]
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class RouteStop(Base):

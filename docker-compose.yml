@@ -17,6 +17,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-idda}:${POSTGRES_PASSWORD:-idda_local_demo}@db:5432/${POSTGRES_DB:-idda}
       DEMO_MODE: ${DEMO_MODE:-false}
+      LOAD_OPEN_DATA: ${LOAD_OPEN_DATA:-true}
       DENSITY_THRESHOLD: ${DENSITY_THRESHOLD:-70}
       ALERT_WINDOW_MINUTES: ${ALERT_WINDOW_MINUTES:-10}
       ALERT_HYSTERESIS: ${ALERT_HYSTERESIS:-10}

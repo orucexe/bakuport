@@ -10,6 +10,39 @@ export interface Stop {
   name: string;
   lat: number;
   lng: number;
+  source_id?: string | null;
+  stop_type?: string | null;
+}
+
+export interface DataSource {
+  key: string;
+  dataset_url: string;
+  row_count: number;
+  updated_at: string;
+  license: string;
+}
+export interface SourceInfo {
+  sources: DataSource[];
+  route_stop_mapping_available: boolean;
+  live_positions: string;
+}
+export interface RidershipRoute {
+  route_code: string;
+  total_rides: number;
+  recorded_days: number;
+  first_date: string;
+  last_date: string;
+}
+export interface RidershipHistory {
+  route_code: string;
+  first_date: string;
+  last_date: string;
+  recorded_days: number;
+  total_rides: number;
+  average_daily_rides: number;
+  latest_daily_rides: number;
+  points: { date: string; rides: number }[];
+  source_url: string;
 }
 export interface Position {
   bus_id?: number;

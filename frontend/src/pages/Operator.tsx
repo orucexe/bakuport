@@ -15,6 +15,7 @@ import {
 import { api, levelText, timeLabel, utcDate } from "../api";
 import TransitMap from "../components/TransitMap";
 import { DensityChart, ForecastChart } from "../components/DensityChart";
+import RidershipPanel from "../components/RidershipPanel";
 import type { Density, Forecast } from "../types";
 import type { Transit } from "../useTransit";
 
@@ -101,7 +102,7 @@ export default function Operator({
           {
             title: "Aktiv marşrutlar",
             value: routes.length,
-            note: "İllüstrativ demo şəbəkəsi",
+            note: "Sınaq xətləri · real dayanacaqlar",
             icon: <Layers size={20} />,
             color: "teal",
           },
@@ -142,6 +143,7 @@ export default function Operator({
       <div className="operator-layout">
         <section className="operator-map">
           <TransitMap
+            catalog={transit.catalog}
             routes={routes}
             stops={stops}
             buses={buses}
@@ -156,7 +158,8 @@ export default function Operator({
             </span>
             <span>
               <i className="tiny-dot medium" />
-              Orta {health?.green_threshold ?? 40}–&lt;{health?.red_threshold ?? 70}
+              Orta {health?.green_threshold ?? 40}–&lt;
+              {health?.red_threshold ?? 70}
             </span>
             <span>
               <i className="tiny-dot high" />
@@ -329,6 +332,7 @@ export default function Operator({
           )}
         </section>
       </div>
+      <RidershipPanel />
     </>
   );
 }

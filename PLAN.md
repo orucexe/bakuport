@@ -47,3 +47,14 @@
 - [ ] External environment check: Docker/PostgreSQL container startup (Docker absent).
 - Real LLM calls were not made; success/failure/timeout paths use HTTP mocks.
 - Fixed demo report timing, tile error clearing, timezone data and chart refresh churn.
+
+## Open-data update
+- [x] Download and inspect both user-provided OpenData CSV resources.
+- [x] Import 3,600 real stops and 15,686 daily ride counts for 65 route codes.
+- [x] Preserve provenance; do not invent official route-stop mappings or live loads.
+- [x] Show real stop catalog/search and daily ridership chart/table with source labels.
+- [x] Verify additive upgrade, preserved reports and repeat imports; restart app.
+- [x] Update documentation; 39 tests, build, browser and static PostgreSQL DDL pass.
+- Existing local database backed up under .local/backups before the real-data import.
+- Source window: Jan 1-Sep 30, 2026; no October records invented or daily loads inferred.
+- Backend, frontend and simulator remain running for the user after this update.

@@ -1,0 +1,25 @@
+{
+  "stops": {
+    "filename": "dayanacaqlar.csv",
+    "dataset_url": "https://opendata.az/@baki-metropoliteni/bakubus-mmc-ye-mexsus-avtobus-marsrutlari-uzre-dayanacaqlarin-cografi-koordinatlari",
+    "download_url": "https://admin.opendata.az/dataset/4e303bfc-c564-4a90-8233-59347494acb1/resource/d4a08018-bda7-4b8c-840e-4250d05f5806/download/dayanacaqlar.csv",
+    "resource_id": "d4a08018-bda7-4b8c-840e-4250d05f5806",
+    "publisher": "Bakı Metropoliteni QSC / BakuBus MMC",
+    "updated_at": "2026-10-28",
+    "retrieved_at": "2026-10-31",
+    "license": "Not specified by the source",
+    "notes": "The CSV contains decimal degrees and duplicate ID column names. Column 3 is the stop source identifier. No route membership or stop ordering is provided."
+  },
+  "ridership": {
+    "filename": "bakubus_passenger-2026.csv",
+    "dataset_url": "https://opendata.az/@baki-metropoliteni/bakubus-marsrutlari-uzre-gundelik-sernisin-gedislerinin-sayi-2026",
+    "download_url": "https://admin.opendata.az/dataset/32766a9d-479c-41ff-a660-7b739b4ff034/resource/bbed6c16-79dc-4b3d-a0b6-b0411dcda473/download/bakubus_passenger-2026.csv",
+    "resource_id": "bbed6c16-79dc-4b3d-a0b6-b0411dcda473",
+    "publisher": "Bakı Metropoliteni QSC / BakuBus MMC; K Group MMC (Bakı Kart)",
+    "updated_at": "2026-10-13",
+    "retrieved_at": "2026-10-31",
+    "license": "Creative Commons Attribution (cc-by)",
+    "license_url": "http://www.opendefinition.org/licenses/cc-by",
+    "notes": "Payment validations per route/day; not unique passengers, live occupancy or hourly density."
+  }
+}

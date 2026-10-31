@@ -2,7 +2,22 @@
 
 A runnable hackathon demo for Baku public transport: simulated GPS, passenger crowd reports, live arrivals, route density, operator alerts, recommendations and forecasts.
 
-**All three routes (`DEMO-A/B/C`), plates and historical samples are fictional.** Coordinates illustrate the Baku area; route lines are illustrative polylines, not official road paths or real service numbers. Each route has ten stops and three buses. The interface is in Azerbaijani.
+The app now bundles **3,600 real stops** and **15,686 daily ride observations for 65 BakuBus route codes** from OpenData.az. Recorded daily rides cover **2026-01-01 through 2026-09-30**. The three moving demo lines (`DEMO-A/B/C`), vehicle plates, live GPS, density samples and density forecasts remain simulated. Each demo line uses ten nearby real stops and three simulated buses. These lines are not official BakuBus route paths. The interface is in Azerbaijani.
+
+## Official open-data snapshots
+
+| Dataset | Use | Important limitation |
+| --- | --- | --- |
+| [Stop coordinates](https://opendata.az/@baki-metropoliteni/bakubus-mmc-ye-mexsus-avtobus-marsrutlari-uzre-dayanacaqlarin-cografi-koordinatlari) | All 3,600 stops appear in a searchable, optional map layer; real names and coordinates are reused on demo paths | The CSV provides stop identifiers, names, type and coordinates, but no route membership or ordered route geometry |
+| [Daily BakuBus rides, 2026](https://opendata.az/@baki-metropoliteni/bakubus-marsrutlari-uzre-gundelik-sernisin-gedislerinin-sayi-2026) | Operator chart/table with all 65 route codes, 7/30/90-day or full-history filters and daily totals | Counts are payment validations, not unique passengers, hourly density, live occupancy or a timetable |
+
+Snapshots are included in `backend/data`, so startup and tests do not depend on the portal being available. `manifest.json` records resource IDs, download URLs, retrieval/update dates, attribution and source license metadata. The stop dataset lists no specified license; the ridership dataset lists Creative Commons Attribution (`cc-by`). Preserve source attribution and consult the original portal metadata when reusing the snapshots.
+
+On startup the importer validates both changed CSVs before writing, preserves leading-zero stop IDs as `source_id`, checks coordinates and route/day uniqueness, and upserts records. The stop CSV has **two columns named `ID`**: its third column is the actual source identifier. The downloaded snapshot uses decimal degrees, despite the portal description mentioning microdegrees; the parser supports both. The daily date values are ISO dates even though the source column label says day-month-year.
+
+Imports are fingerprinted with SHA-256; restarting does not duplicate records or rebuild demo paths. An additive upgrade supplies provenance columns to an existing demo database and creates `daily_ridership` / `data_imports` tables. Old stops, reports, buses, alerts and density history are retained. Existing demo path links are reassigned to nearby real stops once, without claiming an official route-stop relationship. Startup does not clear historical observations. Set `LOAD_OPEN_DATA=false` only to skip automatic imports; this does not erase previously imported data.
+
+The real daily ride chart is deliberately separate from the synthetic density chart and forecast. Its window ends on the latest observation for that route, so missing October records are not represented as current or invented zeros. No daily ride total is converted into a fabricated 0–100 occupancy measurement.
 
 ## Start with Docker
 
@@ -32,6 +47,10 @@ The example enables **demo mode**: the alert observation window becomes one minu
 ```mermaid
 flowchart LR
   S[Python simulator: 9 buses] -->|GPS every 3 seconds + crowd reports| A[FastAPI REST]
+  CSV[Bundled OpenData CSV snapshots] --> I[Validated idempotent importer]
+  I --> D
+  D --> H[Actual daily ridership chart]
+  H --> O
   P[Passenger React UI] -->|One-tap crowd report| A
   A --> D[(PostgreSQL 16)]
   D --> E[Minute density and alert engine]
@@ -48,7 +67,7 @@ flowchart LR
 
 Backend: Python 3.12 container, FastAPI, Pydantic v2 and SQLAlchemy 2.0. Frontend: React, TypeScript, Vite, React Leaflet and Recharts. One backend process owns the scheduler and WebSocket hub; run **one worker**. No Redis, PostGIS, authentication or production hosting is required for this local demo.
 
-Tables follow `AGENTS.md`: routes, stops, ordered route stops, buses, positions, crowd reports, density snapshots and alerts. Additional route fields persist surge controls and alert streaks. Positions are indexed by `(bus_id, ts)`; snapshots by `(route_id, ts)`. A partial unique index enforces one open alert per route. Schema and seed initialization are idempotent; this initial version uses `create_all`, not an upgrade migration system.
+Tables follow `AGENTS.md`: routes, stops, ordered route stops, buses, positions, crowd reports, density snapshots and alerts, plus source import records and route/day ridership. Additional route fields persist surge controls and alert streaks. Positions are indexed by `(bus_id, ts)`; snapshots by `(route_id, ts)`. A partial unique index enforces one open alert per route. Schema and seed initialization are idempotent; the existing stop-table upgrade is additive. This hackathon version does not include a general migration framework.
 
 ## How ETA, density and alerts work
 
@@ -74,6 +93,7 @@ The forecast is a small **statistical seasonal baseline**, independent of the LL
 | `POSTGRES_PASSWORD` | `idda_local_demo` | Local demo password; change for any shared installation |
 | `DATABASE_URL` | PostgreSQL URL | Direct backend connections; Compose constructs its internal URL from the PostgreSQL variables |
 | `DEMO_MODE` | `false` (`true` in example) | One-minute alert window and surge endpoint |
+| `LOAD_OPEN_DATA` | `true` | Import bundled official snapshots and attach real stops to demo paths |
 | `DENSITY_THRESHOLD` | `70` | High-density alert threshold |
 | `ALERT_WINDOW_MINUTES` | `10` | Normal alert window; demo mode overrides to 1 |
 | `ALERT_HYSTERESIS` | `10` | Recovery threshold offset |
@@ -110,6 +130,9 @@ In PowerShell, use `curl.exe` or `Invoke-RestMethod -Method Post 'http://localho
 | GET | `/operator/density/{id}/history?minutes=60` | Chronological history, synthetic flag |
 | GET | `/operator/alerts?status=open` | Open, resolved, or all stored alerts |
 | GET | `/operator/forecast/{id}` | Four seasonal forecast points |
+| GET | `/data/sources` | Source URLs, licenses, hashes, imported counts and mapping limitations |
+| GET | `/operator/ridership/routes` | 65 actual route codes and recorded daily ride totals |
+| GET | `/operator/ridership/{code}?days=30` | Actual daily ride history; e.g. code `62` or `7A` |
 | POST | `/demo/surge?route_id=1&level=5` | Demo scenario state; level 0 stops it |
 | WS | `/ws/live` | Shared realtime event stream |
 
@@ -130,7 +153,7 @@ pytest
 
 PowerShell without activation: `.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt`, then `.\.venv\Scripts\python.exe -m pytest`.
 
-Tests use isolated SQLite databases, with foreign keys enabled, to run without PostgreSQL. They cover route projection, stale/off-route ETA behavior, speed smoothing/floor, density weights/recency, color boundaries, input validation, the full ten-minute alert boundary, interrupted streaks, duplicate prevention, hysteresis/recovery, demo timing, provider fallback, seasonal forecast, idempotent seeds, GPS-to-arrivals, WebSocket delivery and nonblocking LLM behavior. Time-based unit tests use injected timestamps rather than waiting ten minutes.
+Tests use isolated SQLite databases, with foreign keys enabled, to run without PostgreSQL. They cover route projection, stale/off-route ETA behavior, speed smoothing/floor, density weights/recency, color boundaries, input validation, the full ten-minute alert boundary, interrupted streaks, duplicate prevention, hysteresis/recovery, demo timing, provider fallback, seasonal forecast, idempotent seeds, GPS-to-arrivals, WebSocket delivery and nonblocking LLM behavior. Open-data tests additionally cover source CSV totals, leading-zero IDs, decimal/microdegree coordinates, legacy schema upgrades, preservation of reports, repeat imports, actual daily aggregates and GPS/ETA on imported stops. Time-based unit tests use injected timestamps rather than waiting ten minutes.
 
 Frontend build smoke:
 
@@ -172,7 +195,7 @@ Use `npm.cmd` on Windows when PowerShell blocks `npm.ps1`. Unix equivalents use 
 
 ## Verification and limits
 
-All 34 backend tests, the production frontend build and real Edge desktop/mobile browser checks passed. The simulator-to-REST-to-WebSocket thin slice was checked against a running local backend. A live surge created an alert after 65.7 seconds and resolved it after 126.1 seconds of recovery. Browser checks covered moving markers, live alert/recommendation display, reports, cross-route stop selection, WebSocket reconnection, API failure/recovery, and map tile failures. Compose YAML and PostgreSQL DDL were checked statically. See `PLAN.md` for the final verification record.
+All 39 backend tests, the production frontend build and real Edge desktop/mobile browser checks passed. The simulator-to-REST-to-WebSocket thin slice was checked against a running local backend. A live surge created an alert after 65.7 seconds and resolved it after 126.1 seconds of recovery. Browser checks covered moving markers, live alert/recommendation display, reports, cross-route stop selection, WebSocket reconnection, API failure/recovery, and map tile failures. Compose YAML and PostgreSQL DDL were checked statically. See `PLAN.md` for the final verification record.
 
 Docker is not installed on the implementation host, so a PostgreSQL-container clean start and the complete Compose stack could not be executed here. Compose configuration is supplied, but this remains a required environment-level check on a Docker-enabled machine. No real LLM key was used; provider success and failure are tested using HTTP mocks. External map tiles and web fonts need connectivity; the UI retains live overlays and shows a tile-error message if map loading fails.
 
