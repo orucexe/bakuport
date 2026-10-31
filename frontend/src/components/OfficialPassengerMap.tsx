@@ -5,6 +5,7 @@ import {
   GoogleMapViewport,
   GoogleRouteLines,
   GoogleStopLayer,
+  MapProviderBadge,
   type MapStop,
 } from "./GoogleMaps";
 import type { OfficialPassengerData } from "../pages/OfficialPassenger";
@@ -65,7 +66,7 @@ export default function OfficialPassengerMap({
       <div className="map-heading">
         <span>
           <MapPin size={16} />
-          Bakı, Azərbaycan <small>· Google Maps</small>
+          Bakı, Azərbaycan
         </span>
         <button
           className="icon-button"
@@ -88,6 +89,7 @@ export default function OfficialPassengerMap({
       <div className="map-legend">
         <span>AYNA · {stops.length} dayanacaq</span>
         <span>Rəsmi yol sxemi</span>
+        <MapProviderBadge />
       </div>
     </section>
   );

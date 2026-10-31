@@ -4,6 +4,7 @@ import {
   GoogleMapViewport,
   GoogleRouteLines,
   GoogleStopLayer,
+  MapProviderBadge,
   type MapLine,
   type MapStop,
 } from "../components/GoogleMaps";
@@ -285,6 +286,7 @@ export default function OfficialRoutes() {
                   {direction.stops.length} rəsmi dayanacaq
                 </span>
                 <span>Canlı avtobus mövqeyi yoxdur</span>
+                <MapProviderBadge />
               </div>
             </section>
             <section className="card official-stops">

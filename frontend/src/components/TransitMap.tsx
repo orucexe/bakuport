@@ -1,9 +1,4 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import {
-  AdvancedMarker,
-  InfoWindow,
-  useAdvancedMarkerRef,
-} from "@vis.gl/react-google-maps";
 import { BusFront, Maximize2, MapPin } from "lucide-react";
 import { levelColor, levelText, utcDate } from "../api";
 import {
@@ -11,6 +6,9 @@ import {
   GoogleMapViewport,
   GoogleRouteLines,
   GoogleStopLayer,
+  MapMarker,
+  MapInfoWindow,
+  MapProviderBadge,
   type MapLine,
   type MapStop,
 } from "./GoogleMaps";
@@ -27,16 +25,14 @@ function LiveBus({
   level: Level;
   color?: string;
 }) {
-  const [markerRef, marker] = useAdvancedMarkerRef();
   const [open, setOpen] = useState(false);
   if (!bus.position) return null;
   return (
     <>
-      <AdvancedMarker
-        ref={markerRef}
+      <MapMarker
         position={bus.position}
         title={`${route?.code} · ${bus.plate}`}
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((v) => !v)}
       >
         <div className="bus-map-icon">
           <span style={{ background: color || route?.color || "#087f8c" }}>
@@ -44,9 +40,12 @@ function LiveBus({
             <b>{bus.id}</b>
           </span>
         </div>
-      </AdvancedMarker>
-      {open && marker && (
-        <InfoWindow anchor={marker} onCloseClick={() => setOpen(false)}>
+      </MapMarker>
+      {open && (
+        <MapInfoWindow
+          position={bus.position}
+          onCloseClick={() => setOpen(false)}
+        >
           <div className="google-stop-info">
             <strong>
               {route?.code} · {bus.plate}
@@ -55,7 +54,7 @@ function LiveBus({
               {Math.round(bus.position.speed_kmh)} km/saat · {levelText[level]}
             </p>
           </div>
-        </InfoWindow>
+        </MapInfoWindow>
       )}
     </>
   );
@@ -301,10 +300,7 @@ export default function TransitMap({
           <i className="legend-stop" />
           Dayanacaq
         </span>
-        <span className="map-live">
-          <i />
-          Google Maps
-        </span>
+        <MapProviderBadge />
       </div>
     </section>
   );

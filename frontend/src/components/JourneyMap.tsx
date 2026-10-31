@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { AdvancedMarker } from "@vis.gl/react-google-maps";
 import { BusFront, Navigation, MapPin } from "lucide-react";
 import {
   GoogleMapCanvas,
   GoogleMapViewport,
   GoogleRouteLines,
   GoogleStopLayer,
+  MapMarker,
+  MapProviderBadge,
   type MapLine,
   type MapPoint,
   type MapStop,
@@ -172,7 +173,8 @@ export default function JourneyMap({
   }, [routeView, selectedStopSequence]);
 
   return (
-    <GoogleMapCanvas className="j-google-map">
+    <div className="j-map-container" style={{ position: "relative", width: "100%", height: "100%" }}>
+      <GoogleMapCanvas className="j-google-map">
       <GoogleMapViewport points={points} focus={focusPoint} />
       <GoogleRouteLines lines={lines} />
       <GoogleStopLayer
@@ -182,33 +184,33 @@ export default function JourneyMap({
       />
 
       {user && (
-        <AdvancedMarker position={user} title="Canlı məkanınız">
+        <MapMarker position={user} title="Canlı məkanınız">
           <span className="j-user-marker">
             <Navigation size={16} />
           </span>
-        </AdvancedMarker>
+        </MapMarker>
       )}
 
       {origin && (
-        <AdvancedMarker position={origin} title={`Haradan: ${origin.name}`}>
+        <MapMarker position={origin} title={`Haradan: ${origin.name}`}>
           <div className="j-point-pin origin" title={origin.name}>
             <span className="pin-badge">A</span>
             <span className="pin-tooltip">{origin.name}</span>
           </div>
-        </AdvancedMarker>
+        </MapMarker>
       )}
 
       {destination && (
-        <AdvancedMarker position={destination} title={`Haraya: ${destination.name}`}>
+        <MapMarker position={destination} title={`Haraya: ${destination.name}`}>
           <div className="j-point-pin dest" title={destination.name}>
             <span className="pin-badge">B</span>
             <span className="pin-tooltip">{destination.name}</span>
           </div>
-        </AdvancedMarker>
+        </MapMarker>
       )}
 
       {vehicles.map((vehicle) => (
-        <AdvancedMarker
+        <MapMarker
           key={vehicle.vehicle_id}
           position={vehicle}
           title={`${vehicle.label} · ${Math.ceil(vehicle.eta_minutes)} dəqiqə`}
@@ -220,7 +222,7 @@ export default function JourneyMap({
             <BusFront size={18} />
             {journey?.code || routeView?.code}
           </span>
-        </AdvancedMarker>
+        </MapMarker>
       ))}
 
       {horizon > 0 &&
@@ -231,15 +233,19 @@ export default function JourneyMap({
               (point) => point.minutes === horizon,
             );
             return prediction ? (
-              <AdvancedMarker
+              <MapMarker
                 key="prediction"
                 position={prediction}
                 title={`${horizon} dəqiqə sonra təxmini mövqe`}
               >
                 <span className="j-prediction-marker">+{horizon} dəq</span>
-              </AdvancedMarker>
+              </MapMarker>
             ) : null;
           })}
     </GoogleMapCanvas>
+      <div className="j-map-footer" style={{ position: "absolute", bottom: 10, right: 10, zIndex: 1000 }}>
+        <MapProviderBadge />
+      </div>
+    </div>
   );
 }
