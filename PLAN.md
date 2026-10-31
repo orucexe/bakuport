@@ -22,9 +22,9 @@
 - [x] Surge controls, websocket events; 22 backend tests passed; commit.
 
 ## 3. Frontend (45-70 min)
-- [ ] Passenger selectors, arrivals and crowd buttons.
-- [ ] Operator colored routes, alerts and history chart.
-- [ ] Reconnection, loading/error/empty states; build and commit.
+- [x] Passenger selectors, arrivals and crowd buttons.
+- [x] Operator colored routes, alerts and history chart.
+- [x] Reconnection, loading/error/empty states; build and real Edge desktop/mobile smoke passed.
 
 ## 4. AI (70-80 min)
 - [ ] Nonblocking recommendation with deterministic fallback.
