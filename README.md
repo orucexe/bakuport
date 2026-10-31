@@ -6,6 +6,8 @@ The app now bundles **3,600 real stops** and **15,686 daily ride observations fo
 
 The passenger screen follows [DESIGN-airbnb.md](DESIGN-airbnb.md): a white canvas, rose accent, segmented route/stop search, route previews and a Google map beside the arrival/report panel. Mobile search opens a native full-screen dialog. Inter replaces the unavailable licensed Cereal font. Passenger styles are scoped; operator and official-route screens retain their existing design. See the [passenger design system](design-system/idda-passenger/MASTER.md) for tokens and accessibility decisions.
 
+The passenger screen opens with the **official AYNA catalog** (209 routes in the verified response). Its route selector includes the entire catalog; three quick-selection cards show the selected route and two other real lines. Selecting a route loads its actual directional road shape, ordered stops, carrier and source tariff. Switch direction or choose a stop from the search or expandable stop list. Official lines have no verified live GPS, ETA or occupancy feed; the UI explains this and does not submit reports against demo IDs. Use **“Demo rejiminə keç”** to access the separate simulated moving buses, arrivals and crowd reporting. The operator demo continues unchanged.
+
 ## Official open-data snapshots
 
 The **[Official routes view](http://localhost:5173/#routes)** now integrates the public AYNA route service: 209 route entries with on-demand directional road geometry, ordered stops, carrier and fares. It does not show fake live vehicles. The server caches source responses and marks stale fallback data. See [real-data source verification](docs/REAL_DATA_SOURCES.md) for endpoints, captured examples, cache behavior and the GPS investigation.

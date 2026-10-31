@@ -38,8 +38,7 @@
 - [x] Update checklist, record verification limits and commit everything.
 
 ## Verification record
-- Initial quality gate: 34 tests, production build, desktop/mobile Edge passed.
-- Browser: live GPS, reports, selectors, alerts, reconnect, API/map failure recovery.
+- Initial gate: 34 tests, build, desktop/mobile, GPS/report/alert/reconnect/error flows passed.
 - Live simulator rehearsal: alert created after 65.7s; resolved after 126.1s recovery.
 - Fresh SQLite startup, idempotent seeding, Compose YAML and PostgreSQL DDL checked.
 - [ ] External environment check: Docker/PostgreSQL container startup (Docker absent).
@@ -52,7 +51,6 @@
 - [x] Show real stop catalog/search and daily ridership chart/table with source labels.
 - [x] Verify additive upgrade, preserved reports and repeat imports; restart app.
 - [x] Update documentation; 39 tests, build, browser and static PostgreSQL DDL pass.
-- Existing local database backed up under .local/backups before the real-data import.
 - Source window: Jan 1-Sep 30, 2026; no October records invented or daily loads inferred.
 
 ## Official route integration
@@ -61,7 +59,6 @@
 - [x] Add persistent source cache, bounded requests and explicit stale/error states.
 - [x] Keep official metadata separate from simulated GPS; document unavailable feed.
 - [x] 48 tests, build, desktop/mobile/error browser checks and real route 62 fetch pass.
-- Official source returned 209 routes; route 62 returned 2 directions / 63 stop entries.
 - Old BakuBus GPS endpoint returned 404; no unverified GPS feed was enabled.
 
 ## Google Maps (user-requested stack change)
@@ -76,3 +73,8 @@
 - [x] Scope white/rose styling, desktop search/rail and mobile native dialogs to passenger.
 - [x] Preserve maps, demo labels, route/stop selection, arrivals, reports and source links.
 - [x] Build, Edge 320-1440px layouts, dialogs, reports, API error/empty/retry and existing views pass; commit.
+
+## Official passenger routes (approximately 30 min)
+- [x] Default to AYNA catalog, real directional road shapes/stops; preserve passenger design.
+- [x] Keep simulator behind explicit demo switch; no invented official GPS/ETA/crowding.
+- [x] Build and Edge: selection/directions/stops, 320-1440px, demo reports, failures/retry/stale pass; documented and committed.

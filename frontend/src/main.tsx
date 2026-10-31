@@ -12,7 +12,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useTransit } from "./useTransit";
-import Passenger from "./pages/Passenger";
+import Passenger from "./pages/OfficialPassenger";
 import Operator from "./pages/Operator";
 import OfficialRoutes from "./pages/OfficialRoutes";
 import SourceNotice from "./components/SourceNotice";

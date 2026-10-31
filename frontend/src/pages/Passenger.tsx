@@ -15,6 +15,7 @@ import {
   Radio,
   Route as RouteIcon,
   Search,
+  ShieldCheck,
   Users,
   Wifi,
   WifiOff,
@@ -22,6 +23,8 @@ import {
 } from "lucide-react";
 import { api, levelText } from "../api";
 import TransitMap from "../components/TransitMap";
+import OfficialPassengerMap from "../components/OfficialPassengerMap";
+import type { OfficialPassengerData } from "./OfficialPassenger";
 import type { Transit } from "../useTransit";
 import type { Arrival, Stop } from "../types";
 import "./passenger.css";
@@ -82,12 +85,16 @@ export default function Passenger({
   setRoute,
   selectedStop,
   setStop,
+  official,
+  onMode,
 }: {
   transit: Transit;
   selectedRoute: number;
   setRoute: (id: number) => void;
   selectedStop: number;
   setStop: (id: number) => void;
+  official?: OfficialPassengerData;
+  onMode?: () => void;
 }) {
   const { routes, stops, buses, density, revision } = transit;
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
@@ -117,13 +124,18 @@ export default function Passenger({
       ? currentDensity.level
       : "unknown";
   const nextArrival = arrivals[0];
+  const displayedRoutes = official
+    ? [route, ...routes.filter((item) => item.id !== selectedRoute)]
+        .filter((item): item is NonNullable<typeof item> => !!item)
+        .slice(0, 3)
+    : routes;
 
   useEffect(() => {
     setReportBus(0);
     setNotice(null);
   }, [selectedRoute]);
   useEffect(() => {
-    if (!selectedStop) {
+    if (official || !selectedStop) {
       setLoading(false);
       setArrivals([]);
       setError("");
@@ -160,7 +172,7 @@ export default function Passenger({
       controller.abort();
       clearInterval(timer);
     };
-  }, [selectedStop, selectedRoute, revision]);
+  }, [selectedStop, selectedRoute, revision, !!official]);
 
   function scrollTo(id: string) {
     const reducedMotion = window.matchMedia(
@@ -186,6 +198,7 @@ export default function Passenger({
     setMenuOpen(true);
   }
   async function report(level: number) {
+    if (official) return;
     setSending(true);
     setNotice(null);
     try {
@@ -298,6 +311,7 @@ export default function Passenger({
               onChange={(event) => setStop(Number(event.target.value))}
               disabled={!routes.length}
             >
+              {official && <option value={0}>Dayanacaq seçin</option>}
               {stopOptions()}
             </select>
           </label>
@@ -346,16 +360,39 @@ export default function Passenger({
             <p>Növbəti avtobusunu tap. Daha rahat yola çıx.</p>
           </div>
           <span
-            className={`p-connection ${transit.connected ? "" : "offline"}`}
+            className={`p-connection ${official || transit.connected ? "" : "offline"}`}
           >
-            {transit.connected ? (
+            {official ? (
+              <ShieldCheck size={16} aria-hidden="true" />
+            ) : transit.connected ? (
               <Wifi size={16} aria-hidden="true" />
             ) : (
               <WifiOff size={16} aria-hidden="true" />
             )}
-            {transit.connected ? "Canlı bağlantı" : "Yenidən bağlanır…"}
+            {official
+              ? "AYNA · Rəsmi mənbə"
+              : transit.connected
+                ? "Canlı bağlantı · demo"
+                : "Yenidən bağlanır…"}
           </span>
         </div>
+        <div className="p-data-mode">
+          <span>
+            {official
+              ? `${routes.length} rəsmi marşrut · İstədiyiniz xətti yuxarıdan seçin`
+              : "Simulator · demo marşrutları"}
+          </span>
+          <button onClick={onMode}>
+            {official ? "Demo rejiminə keç" : "Rəsmi xətlərə qayıt"}
+          </button>
+        </div>
+        {official?.route?.stale && (
+          <p className="p-inline-error" role="status">
+            AYNA hazırda əlçatan deyil.{" "}
+            {new Date(official.route.fetched_at).toLocaleString("az-AZ")}{" "}
+            tarixində alınmış saxlanmış nüsxə göstərilir.
+          </p>
+        )}
         {transit.error && (
           <div className="p-error" role="alert">
             <span>{transit.error}</span>
@@ -364,7 +401,10 @@ export default function Passenger({
             </button>
           </div>
         )}
-        <section className="p-routes" aria-label="Demo marşrut seçimi">
+        <section
+          className="p-routes"
+          aria-label={official ? "Rəsmi marşrut seçimi" : "Demo marşrut seçimi"}
+        >
           {transit.loading
             ? [1, 2, 3].map((id) => (
                 <div
@@ -373,7 +413,7 @@ export default function Passenger({
                   aria-label="Marşrut yüklənir"
                 />
               ))
-            : routes.map((item) => {
+            : displayedRoutes.map((item) => {
                 const d = density.find((value) => value.route_id === item.id);
                 const level =
                   d && d.confidence !== "unavailable" ? d.level : "unknown";
@@ -386,16 +426,25 @@ export default function Passenger({
                     onClick={() => setRoute(item.id)}
                   >
                     <div className="p-route-visual">
-                      <RoutePreview
-                        stops={stops[item.id] || []}
-                        selected={selected}
-                      />
+                      {official ? (
+                        <div className="p-official-route-number">
+                          <BusFront size={26} aria-hidden="true" />
+                          <strong>№ {item.code}</strong>
+                        </div>
+                      ) : (
+                        <RoutePreview
+                          stops={stops[item.id] || []}
+                          selected={selected}
+                        />
+                      )}
                       <span className="p-route-badge">
                         {selected ? (
                           <>
                             <Check size={12} aria-hidden="true" />
                             Seçilmiş xətt
                           </>
+                        ) : official ? (
+                          "AYNA · Rəsmi xətt"
                         ) : (
                           "Demo xətti"
                         )}
@@ -408,14 +457,17 @@ export default function Passenger({
                       <div>
                         <strong>{item.name.replace(" (demo)", "")}</strong>
                         <span>
-                          {item.code} · {(stops[item.id] || []).length}{" "}
-                          dayanacaq
+                          {official
+                            ? `№ ${item.code} · Rəsmi marşrut`
+                            : `${item.code} · ${(stops[item.id] || []).length} dayanacaq`}
                         </span>
                       </div>
-                      <span className={`p-crowd ${level}`}>
-                        <i />
-                        {levelText[level]}
-                      </span>
+                      {!official && (
+                        <span className={`p-crowd ${level}`}>
+                          <i />
+                          {levelText[level]}
+                        </span>
+                      )}
                     </div>
                   </button>
                 );
@@ -436,16 +488,45 @@ export default function Passenger({
           <h2>Səfərinə yaxından bax</h2>
           <span>
             <Radio size={14} aria-hidden="true" />
-            GPS və sıxlıq · demo
+            {official ? "AYNA · Rəsmi yol sxemi" : "GPS və sıxlıq · demo"}
           </span>
         </div>
+        {official?.route && (
+          <div className="p-official-details">
+            <p>
+              <strong>№ {official.route.code}</strong> ·{" "}
+              {official.route.carrier} · {official.route.tariff_label}
+            </p>
+            <div className="p-direction-picker" aria-label="Marşrut istiqaməti">
+              {official.route.directions.map((direction) => (
+                <button
+                  key={direction.id}
+                  aria-pressed={direction.id === official.directionId}
+                  onClick={() => official.setDirection(direction.id)}
+                >
+                  {direction.label}
+                  <span>{direction.stops.length} dayanacaq</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="p-journey-grid">
           <div className="p-map-column">
             <section id="passenger-map" aria-label="Səfərin xəritəsi">
               {transit.loading || !routes.length ? (
                 <div className="p-map-skeleton" role="status">
-                  Xəritə məlumatları hazırlanır…
+                  {transit.loading
+                    ? "Xəritə məlumatları hazırlanır…"
+                    : "Göstəriləcək marşrut yoxdur."}
                 </div>
+              ) : official ? (
+                <OfficialPassengerMap
+                  official={official}
+                  selectedStop={selectedStop}
+                  onStop={setStop}
+                  focusRequest={focusRequest}
+                />
               ) : (
                 <TransitMap
                   variant="passenger"
@@ -468,8 +549,8 @@ export default function Passenger({
               <div>
                 <h3>{currentStop?.name || "Dayanacağınızı seçin"}</h3>
                 <p>
-                  {route?.code || "Demo marşrut"} · {routeStops.length}{" "}
-                  dayanacaq · Bakı
+                  {route?.code || (official ? "Rəsmi marşrut" : "Demo marşrut")}{" "}
+                  · {routeStops.length} dayanacaq · Bakı
                 </p>
               </div>
               <span className={`p-crowd ${crowdLevel}`}>
@@ -477,6 +558,29 @@ export default function Passenger({
                 {levelText[crowdLevel]}
               </span>
             </div>
+            {official && routeStops.length > 0 && (
+              <details className="p-stop-list">
+                <summary>
+                  İstiqamətdəki {routeStops.length} dayanacağa bax
+                </summary>
+                <ol>
+                  {routeStops.map((stop) => (
+                    <li key={stop.id}>
+                      <button
+                        aria-pressed={selectedStop === stop.id}
+                        onClick={() => {
+                          setStop(stop.id);
+                          setFocusRequest((value) => value + 1);
+                        }}
+                      >
+                        <span>{stop.id}</span>
+                        {stop.name}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
             <div className="p-community">
               <MessageCircle size={28} strokeWidth={1.4} aria-hidden="true" />
               <div>
@@ -500,7 +604,9 @@ export default function Passenger({
                 <Clock3 size={20} strokeWidth={1.5} aria-hidden="true" />
               </div>
               <p className="p-card-description">
-                Seçdiyin dayanacağa təxmini çatma vaxtı
+                {official
+                  ? "Canlı GPS məlumatı tələb olunur"
+                  : "Seçdiyin dayanacağa təxmini çatma vaxtı"}
               </p>
               {error && (
                 <p className="p-inline-error" role="alert">
@@ -545,17 +651,27 @@ export default function Passenger({
               ) : (
                 <div className="p-empty">
                   <Clock3 size={30} strokeWidth={1.3} aria-hidden="true" />
-                  <strong>Bir azdan yenidən bax</strong>
-                  <p>Bu dayanacağa yaxınlaşan avtobus hələ görünmür.</p>
-                  <button onClick={openSearch}>
-                    Başqa dayanacaq seç
+                  <strong>
+                    {official
+                      ? "Canlı gəliş məlumatı yoxdur"
+                      : "Bir azdan yenidən bax"}
+                  </strong>
+                  <p>
+                    {official
+                      ? "Bu xətt üçün təsdiqlənmiş canlı GPS mənbəyi yoxdur. Avtobus mövqeyi və ETA göstərilmir."
+                      : "Bu dayanacağa yaxınlaşan avtobus hələ görünmür."}
+                  </p>
+                  <button onClick={official ? onMode : openSearch}>
+                    {official ? "Demo axınını yoxla" : "Başqa dayanacaq seç"}
                     <ArrowRight size={15} aria-hidden="true" />
                   </button>
                 </div>
               )}
               <p className="p-update-note">
                 <span />
-                Hər 10 saniyədə yenilənir · demo GPS
+                {official
+                  ? "Sıxlıq məlumatı yoxdur"
+                  : "Hər 10 saniyədə yenilənir · demo GPS"}
               </p>
             </section>
             <section className="p-report" id="crowd-report">
@@ -564,69 +680,77 @@ export default function Passenger({
                 <Users size={20} strokeWidth={1.5} aria-hidden="true" />
               </div>
               <p className="p-card-description">
-                Bir toxunuşla sıxlığı bildir.
+                {official
+                  ? "Rəsmi xətlər üçün hesabat qəbulu hələ qoşulmayıb. Demo rejimində hesabat axınını yoxlaya bilərsiniz."
+                  : "Bir toxunuşla sıxlığı bildir."}
               </p>
-              <label htmlFor="report-bus">
-                Olduğun avtobus
-                <select
-                  id="report-bus"
-                  value={reportBus || routeBuses[0]?.id || ""}
-                  disabled={!routeBuses.length}
-                  onChange={(event) => setReportBus(Number(event.target.value))}
-                >
-                  {routeBuses.map((bus) => (
-                    <option key={bus.id} value={bus.id}>
-                      {bus.plate} · {route?.code}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="p-report-buttons">
-                {[
-                  {
-                    level: 1,
-                    text: "Boş",
-                    icon: <Check size={20} aria-hidden="true" />,
-                  },
-                  {
-                    level: 3,
-                    text: "Orta",
-                    icon: <Users size={20} aria-hidden="true" />,
-                  },
-                  {
-                    level: 5,
-                    text: "Dolu",
-                    icon: <BusFront size={20} aria-hidden="true" />,
-                  },
-                ].map((item) => (
-                  <button
-                    key={item.level}
-                    disabled={sending || !routeBuses.length}
-                    onClick={() => void report(item.level)}
-                    aria-label={`${item.text} sıxlıq hesabatı göndər`}
-                  >
-                    {item.icon}
-                    <span>{item.text}</span>
-                  </button>
-                ))}
-              </div>
-              {sending && (
-                <p className="p-report-feedback" role="status">
-                  Hesabat göndərilir…
-                </p>
+              {!official && (
+                <>
+                  <label htmlFor="report-bus">
+                    Olduğun avtobus
+                    <select
+                      id="report-bus"
+                      value={reportBus || routeBuses[0]?.id || ""}
+                      disabled={!routeBuses.length}
+                      onChange={(event) =>
+                        setReportBus(Number(event.target.value))
+                      }
+                    >
+                      {routeBuses.map((bus) => (
+                        <option key={bus.id} value={bus.id}>
+                          {bus.plate} · {route?.code}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="p-report-buttons">
+                    {[
+                      {
+                        level: 1,
+                        text: "Boş",
+                        icon: <Check size={20} aria-hidden="true" />,
+                      },
+                      {
+                        level: 3,
+                        text: "Orta",
+                        icon: <Users size={20} aria-hidden="true" />,
+                      },
+                      {
+                        level: 5,
+                        text: "Dolu",
+                        icon: <BusFront size={20} aria-hidden="true" />,
+                      },
+                    ].map((item) => (
+                      <button
+                        key={item.level}
+                        disabled={sending || !routeBuses.length}
+                        onClick={() => void report(item.level)}
+                        aria-label={`${item.text} sıxlıq hesabatı göndər`}
+                      >
+                        {item.icon}
+                        <span>{item.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {sending && (
+                    <p className="p-report-feedback" role="status">
+                      Hesabat göndərilir…
+                    </p>
+                  )}
+                  {notice && (
+                    <p
+                      className={`p-report-feedback ${notice.success ? "success" : "error"}`}
+                      role={notice.success ? "status" : "alert"}
+                    >
+                      {notice.success && <Check size={16} aria-hidden="true" />}
+                      {notice.text}
+                    </p>
+                  )}
+                  <p className="p-report-footnote">
+                    Sənin hesabatın. Daha məlumatlı bir şəhər.
+                  </p>
+                </>
               )}
-              {notice && (
-                <p
-                  className={`p-report-feedback ${notice.success ? "success" : "error"}`}
-                  role={notice.success ? "status" : "alert"}
-                >
-                  {notice.success && <Check size={16} aria-hidden="true" />}
-                  {notice.text}
-                </p>
-              )}
-              <p className="p-report-footnote">
-                Sənin hesabatın. Daha məlumatlı bir şəhər.
-              </p>
             </section>
           </aside>
         </div>
@@ -663,13 +787,17 @@ export default function Passenger({
       </footer>
       <div className="p-mobile-summary">
         <div>
-          <span>Seçilmiş dayanacağa</span>
+          <span>{official ? "Rəsmi marşrut" : "Seçilmiş dayanacağa"}</span>
           <strong>
-            {!loading && nextArrival
-              ? `${Math.ceil(nextArrival.eta_minutes)} dəqiqə`
-              : loading
-                ? "Gəlişlər yüklənir…"
-                : "Gəliş gözlənilir"}
+            {official
+              ? route
+                ? `№ ${route.code} · ${routeStops.length} dayanacaq`
+                : "Xətt seçin"
+              : !loading && nextArrival
+                ? `${Math.ceil(nextArrival.eta_minutes)} dəqiqə`
+                : loading
+                  ? "Gəlişlər yüklənir…"
+                  : "Gəliş gözlənilir"}
           </strong>
         </div>
         <button onClick={() => showMap()}>
@@ -712,6 +840,7 @@ export default function Passenger({
               onChange={(event) => setStop(Number(event.target.value))}
               disabled={!routes.length}
             >
+              {official && <option value={0}>Dayanacaq seçin</option>}
               {stopOptions()}
             </select>
           </label>
@@ -719,7 +848,11 @@ export default function Passenger({
             <Clock3 size={20} aria-hidden="true" />
             <div>
               <strong>İndi</strong>
-              <p>Gəlişlər demo GPS məlumatlarından hesablanır.</p>
+              <p>
+                {official
+                  ? "Rəsmi yol sxemi və dayanacaqlar göstərilir. Canlı ETA mövcud deyil."
+                  : "Gəlişlər demo GPS məlumatlarından hesablanır."}
+              </p>
             </div>
           </div>
           <button
@@ -788,15 +921,26 @@ export default function Passenger({
           </button>
         </div>
         <p>
-          Bu səhifədəki DEMO xətləri, avtobus mövqeləri və sıxlıq göstəriciləri
-          sınaq üçündür. Gəliş vaxtları simulatorun GPS məlumatlarından
-          hesablanır.
+          {official
+            ? "Marşrutlar, yol sxemləri, istiqamətlər, dayanacaqlar və tariflər AYNA-nın rəsmi xəritə xidmətindəndir. Canlı GPS, ETA və doluluq məlumatı mövcud deyil."
+            : "Bu səhifədəki DEMO xətləri, avtobus mövqeləri və sıxlıq göstəriciləri sınaq üçündür. Gəliş vaxtları simulatorun GPS məlumatlarından hesablanır."}
         </p>
         <p>
-          Dayanacaq adları və koordinatları OpenData.az mənbəyindəndir. Rəsmi
-          yol sxemləri ayrıca AYNA marşrutları bölməsindədir.
+          {official
+            ? "Göstərilən məlumatlar AYNA mənbəyindən alınma anına aiddir; sonrakı dəyişikliklər üçün mənbəni yoxlayın."
+            : "Dayanacaq adları və koordinatları OpenData.az mənbəyindəndir. Rəsmi yol sxemləri ayrıca AYNA marşrutları bölməsindədir."}
         </p>
         <div className="p-about-links">
+          {official && (
+            <a
+              href={official.route?.source_url || "https://map.ayna.gov.az/"}
+              target="_blank"
+              rel="noreferrer"
+            >
+              AYNA · Rəsmi mənbə
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+          )}
           {transit.sources?.sources.map((source) => (
             <a
               key={source.key}

@@ -8,6 +8,7 @@ Scope: passenger page and passenger-scoped map presentation only.
 - Preserve route/stop selection, Google Maps, arrival estimates and one-tap reports.
 - Keep demo GPS and density clearly labeled; do not invent real vehicle data.
 - Operator and official-route views retain their existing appearance.
+- Passenger defaults to official AYNA routes; simulated GPS/reporting is behind an explicit demo switch.
 
 ## Tokens
 - Canvas #ffffff; ink #222222; body #3f3f3f; muted #6a6a6a.

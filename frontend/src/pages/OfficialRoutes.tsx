@@ -39,10 +39,10 @@ interface Provenance {
   stale: boolean;
   live_positions_available: boolean;
 }
-interface Catalog extends Provenance {
+export interface Catalog extends Provenance {
   routes: { source_id: number; code: string }[];
 }
-interface OfficialRoute extends Provenance {
+export interface OfficialRoute extends Provenance {
   source_id: number;
   code: string;
   carrier: string;
