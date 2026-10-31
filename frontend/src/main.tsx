@@ -14,14 +14,19 @@ import {
 import { useTransit } from "./useTransit";
 import Passenger from "./pages/Passenger";
 import Operator from "./pages/Operator";
+import OfficialRoutes from "./pages/OfficialRoutes";
 import SourceNotice from "./components/SourceNotice";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 
 function App() {
   const transit = useTransit();
-  const [page, setPage] = useState<"passenger" | "operator">(
-    location.hash === "#operator" ? "operator" : "passenger",
+  const [page, setPage] = useState<"passenger" | "operator" | "routes">(
+    location.hash === "#routes"
+      ? "routes"
+      : location.hash === "#operator"
+        ? "operator"
+        : "passenger",
   );
   const [selectedRoute, setSelectedRoute] = useState(1);
   const [selectedStop, setSelectedStop] = useState(0);
@@ -36,7 +41,13 @@ function App() {
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 10000);
     const hash = () =>
-      setPage(location.hash === "#operator" ? "operator" : "passenger");
+      setPage(
+        location.hash === "#routes"
+          ? "routes"
+          : location.hash === "#operator"
+            ? "operator"
+            : "passenger",
+      );
     window.addEventListener("hashchange", hash);
     return () => {
       clearInterval(timer);
@@ -70,6 +81,11 @@ function App() {
         </a>
         <div className="workspace-label">İŞ SAHƏSİ</div>
         <nav aria-label="Əsas naviqasiya">
+          <a className={page === "routes" ? "active" : ""} href="#routes">
+            <RouteIcon size={19} />
+            <span>Marşrutlar</span>
+            {page === "routes" && <span className="nav-dot" />}
+          </a>
           <a className={page === "passenger" ? "active" : ""} href="#passenger">
             <BusFront size={19} />
             <span>Sərnişin</span>
@@ -110,7 +126,11 @@ function App() {
           <div className="breadcrumb">
             İş sahəsi <span>/</span>
             <strong>
-              {page === "passenger" ? "Sərnişin paneli" : "Operator paneli"}
+              {page === "routes"
+                ? "Rəsmi marşrutlar"
+                : page === "passenger"
+                  ? "Sərnişin paneli"
+                  : "Operator paneli"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -179,6 +199,8 @@ function App() {
                 Yenidən cəhd et
               </button>
             </div>
+          ) : page === "routes" ? (
+            <OfficialRoutes />
           ) : page === "passenger" ? (
             <Passenger
               transit={transit}

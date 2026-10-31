@@ -58,3 +58,13 @@
 - Existing local database backed up under .local/backups before the real-data import.
 - Source window: Jan 1-Sep 30, 2026; no October records invented or daily loads inferred.
 - Backend, frontend and simulator remain running for the user after this update.
+
+## Official route integration
+- [x] Inspect official AYNA/BakuBus services; verify 209 route entries and geometry.
+- [x] Integrate actual bidirectional route paths, stops, carrier and tariff in the UI.
+- [x] Add persistent source cache, bounded requests and explicit stale/error states.
+- [x] Keep official metadata separate from simulated GPS; document unavailable feed.
+- [x] 48 tests, build, desktop/mobile/error browser checks and real route 62 fetch pass.
+- Official source returned 209 routes; route 62 returned 2 directions / 63 stop entries.
+- Old BakuBus GPS endpoint returned 404; no unverified GPS feed was enabled.
+- Verification and source boundaries: docs/REAL_DATA_SOURCES.md; app stays running.

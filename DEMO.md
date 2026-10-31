@@ -12,6 +12,7 @@
 
 - Introduce the project: real-time GPS plus passenger reports help people choose less crowded buses.
 - Show the official stop layer and search for a real stop. Explain that stop coordinates and daily ride counts are official open data; demo paths, vehicles and live density remain simulated.
+- Briefly open `/#routes`: choose an actual AYNA route, switch direction and highlight a stop. These are official road paths; there are no live vehicle markers in this view because no working public GPS feed was verified.
 - Select a route and stop. Point to moving buses, the selected stop and sorted arrival times.
 
 ## 0:30–0:55 — Crowd report

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, String, text
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, JSON, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base, utcnow
@@ -43,6 +43,14 @@ class DataImport(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     row_count: Mapped[int]
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class OfficialRouteCache(Base):
+    __tablename__ = "official_route_cache"
+    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    source_url: Mapped[str] = mapped_column(String(500))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class RouteStop(Base):

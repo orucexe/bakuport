@@ -24,6 +24,7 @@ export default function SourceNotice({ info }: { info: SourceInfo | null }) {
         </p>
       </div>
       <div className="source-links">
+        <a href="#routes">AYNA · Rəsmi marşrutlara bax</a>
         {info.sources.map((source) => (
           <a
             href={source.dataset_url}

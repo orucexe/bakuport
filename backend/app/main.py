@@ -18,6 +18,8 @@ from .services.engine import alert_payload, calculate_tick
 from .services.ai import recommendation
 from .services.open_data import import_open_data
 from .routers.open_data import router as open_data_router
+from .routers.official_routes import router as official_routes_router
+from .services.official_routes import OfficialRoutes, bootstrap_official_cache
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     engine, sessions = make_database(settings.database_url)
     hub = LiveHub()
     recommendation_tasks: set[asyncio.Task] = set()
+    official_routes = OfficialRoutes(sessions, settings)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -36,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             seed(session)
             if settings.load_open_data:
                 import_open_data(session)
+            bootstrap_official_cache(session)
         await run_tick()
         app.state.next_tick = time.monotonic() + 60
         task = asyncio.create_task(analytics_loop())
@@ -47,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             for pending in recommendation_tasks:
                 pending.cancel()
             await asyncio.gather(*recommendation_tasks, return_exceptions=True)
+            await official_routes.client.aclose()
             engine.dispose()
 
     async def improve_recommendation(alert_id: int, route_id: int):
@@ -88,11 +93,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="IDDA · Smart Transit Demo", lifespan=lifespan)
     app.state.sessions = sessions
     app.state.settings = settings
+    app.state.official_routes = official_routes
     app.state.hub = hub
     app.state.next_tick = time.monotonic() + 60
     app.state.run_tick = run_tick
     app.include_router(analytics_router)
     app.include_router(open_data_router)
+    app.include_router(official_routes_router)
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 

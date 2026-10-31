@@ -71,7 +71,8 @@ def test_import_into_existing_demo_preserves_reports_and_is_idempotent(client):
     assert client.get('/operator/ridership/DOES-NOT-EXIST').status_code == 404
     assert client.get('/operator/ridership/62?days=0').status_code == 422
     provenance = client.get('/data/sources').json()
-    assert not provenance['route_stop_mapping_available']
+    assert provenance['route_stop_mapping_available']
+    assert not provenance['csv_route_stop_mapping_available']
     assert provenance['sources'][0]['row_count'] == 3600
 
 

@@ -6,6 +6,8 @@ The app now bundles **3,600 real stops** and **15,686 daily ride observations fo
 
 ## Official open-data snapshots
 
+The **[Official routes view](http://localhost:5173/#routes)** now integrates the public AYNA route service: 209 route entries with on-demand directional road geometry, ordered stops, carrier and fares. It does not show fake live vehicles. The server caches source responses and marks stale fallback data. See [real-data source verification](docs/REAL_DATA_SOURCES.md) for endpoints, captured examples, cache behavior and the GPS investigation.
+
 | Dataset | Use | Important limitation |
 | --- | --- | --- |
 | [Stop coordinates](https://opendata.az/@baki-metropoliteni/bakubus-mmc-ye-mexsus-avtobus-marsrutlari-uzre-dayanacaqlarin-cografi-koordinatlari) | All 3,600 stops appear in a searchable, optional map layer; real names and coordinates are reused on demo paths | The CSV provides stop identifiers, names, type and coordinates, but no route membership or ordered route geometry |
@@ -34,6 +36,7 @@ PowerShell: use `Copy-Item .env.example .env` for the first command. Keep the lo
 | --- | --- |
 | Passenger | http://localhost:5173/#passenger |
 | Operator | http://localhost:5173/#operator |
+| Official AYNA routes | http://localhost:5173/#routes |
 | Swagger / OpenAPI | http://localhost:8000/docs / http://localhost:8000/openapi.json |
 | Health | http://localhost:8000/health |
 | WebSocket | ws://localhost:8000/ws/live |
@@ -94,6 +97,8 @@ The forecast is a small **statistical seasonal baseline**, independent of the LL
 | `DATABASE_URL` | PostgreSQL URL | Direct backend connections; Compose constructs its internal URL from the PostgreSQL variables |
 | `DEMO_MODE` | `false` (`true` in example) | One-minute alert window and surge endpoint |
 | `LOAD_OPEN_DATA` | `true` | Import bundled official snapshots and attach real stops to demo paths |
+| `AYNA_API_URL` | `https://map-api.ayna.gov.az` | Public official route metadata upstream |
+| `AYNA_CACHE_HOURS` | `24` | Persistent metadata cache lifetime; stale fallback is labeled |
 | `DENSITY_THRESHOLD` | `70` | High-density alert threshold |
 | `ALERT_WINDOW_MINUTES` | `10` | Normal alert window; demo mode overrides to 1 |
 | `ALERT_HYSTERESIS` | `10` | Recovery threshold offset |
@@ -131,6 +136,8 @@ In PowerShell, use `curl.exe` or `Invoke-RestMethod -Method Post 'http://localho
 | GET | `/operator/alerts?status=open` | Open, resolved, or all stored alerts |
 | GET | `/operator/forecast/{id}` | Four seasonal forecast points |
 | GET | `/data/sources` | Source URLs, licenses, hashes, imported counts and mapping limitations |
+| GET | `/official/routes` | Actual AYNA route catalog, source/fetch date and freshness |
+| GET | `/official/routes/{source_id}` | Actual directional path/stops, carrier, tariff; no live GPS |
 | GET | `/operator/ridership/routes` | 65 actual route codes and recorded daily ride totals |
 | GET | `/operator/ridership/{code}?days=30` | Actual daily ride history; e.g. code `62` or `7A` |
 | POST | `/demo/surge?route_id=1&level=5` | Demo scenario state; level 0 stops it |
@@ -195,7 +202,7 @@ Use `npm.cmd` on Windows when PowerShell blocks `npm.ps1`. Unix equivalents use 
 
 ## Verification and limits
 
-All 39 backend tests, the production frontend build and real Edge desktop/mobile browser checks passed. The simulator-to-REST-to-WebSocket thin slice was checked against a running local backend. A live surge created an alert after 65.7 seconds and resolved it after 126.1 seconds of recovery. Browser checks covered moving markers, live alert/recommendation display, reports, cross-route stop selection, WebSocket reconnection, API failure/recovery, and map tile failures. Compose YAML and PostgreSQL DDL were checked statically. See `PLAN.md` for the final verification record.
+All 48 backend tests, the production frontend build and real Edge desktop/mobile browser checks passed. The simulator-to-REST-to-WebSocket thin slice was checked against a running local backend. A live surge created an alert after 65.7 seconds and resolved it after 126.1 seconds of recovery. Browser checks covered moving markers, live alert/recommendation display, reports, cross-route stop selection, WebSocket reconnection, API failure/recovery, and map tile failures. Compose YAML and PostgreSQL DDL were checked statically. See `PLAN.md` for the final verification record.
 
 Docker is not installed on the implementation host, so a PostgreSQL-container clean start and the complete Compose stack could not be executed here. Compose configuration is supplied, but this remains a required environment-level check on a Docker-enabled machine. No real LLM key was used; provider success and failure are tested using HTTP mocks. External map tiles and web fonts need connectivity; the UI retains live overlays and shows a tile-error message if map loading fails.
 

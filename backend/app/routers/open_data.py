@@ -19,7 +19,10 @@ def sources(request: Request):
             result.append({"key": key, **metadata, "row_count": imported.row_count if imported else 0,
                            "sha256": imported.sha256 if imported else None,
                            "imported_at": imported.imported_at if imported else None})
-        return {"sources": result, "route_stop_mapping_available": False,
+        return {"sources": result, "route_stop_mapping_available": True,
+                "csv_route_stop_mapping_available": False,
+                "official_route_source": "https://map.ayna.gov.az/",
+                "official_route_api": "/official/routes",
                 "live_positions": "simulated", "density_history": "synthetic_and_simulated"}
 
 
