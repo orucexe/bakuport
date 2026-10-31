@@ -62,6 +62,7 @@
 
 ## Passenger mobile-first follow-up
 - [x] Mobile baseline, styled suggestions, 48px actions; tablet/desktop progressive layout.
+- [x] Center passenger map in its own row; verify 375-1920px and update Vercel production.
 - [x] Edge 320-1440px/landscape, keyboard/pickers/search/route finder and build pass.
 
 ## Walk-bus-walk correction (approximately 25 min)

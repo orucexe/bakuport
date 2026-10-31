@@ -371,7 +371,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
             </button>
           </p>
         )}
-        <div className="j-workspace">
+        <div className={`j-workspace j-journey-centered ${!searched ? "awaiting-search" : ""}`}>
           <section className="j-results" aria-label="Uyğun avtobuslar">
             <div className="j-section-heading">
               <h2>
