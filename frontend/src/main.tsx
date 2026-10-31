@@ -16,7 +16,7 @@ import Passenger from "./pages/Passenger";
 import Operator from "./pages/Operator";
 import OfficialRoutes from "./pages/OfficialRoutes";
 import SourceNotice from "./components/SourceNotice";
-import "leaflet/dist/leaflet.css";
+import { GoogleMapsProvider } from "./components/GoogleMaps";
 import "./style.css";
 
 function App() {
@@ -229,4 +229,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <GoogleMapsProvider>
+    <App />
+  </GoogleMapsProvider>,
+);

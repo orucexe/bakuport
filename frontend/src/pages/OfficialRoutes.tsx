@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  MapContainer,
-  TileLayer,
-  Polyline,
-  CircleMarker,
-  Popup,
-  useMap,
-} from "react-leaflet";
-import L from "leaflet";
+  GoogleMapCanvas,
+  GoogleMapViewport,
+  GoogleRouteLines,
+  GoogleStopLayer,
+  type MapLine,
+  type MapStop,
+} from "../components/GoogleMaps";
 import {
   ArrowLeftRight,
   Building2,
@@ -54,31 +53,6 @@ interface OfficialRoute extends Provenance {
   directions: Direction[];
 }
 
-function MapFocus({
-  shape,
-  stop,
-}: {
-  shape: Point[];
-  stop: OfficialStop | null;
-}) {
-  const map = useMap();
-  useEffect(() => {
-    map.fitBounds(
-      L.latLngBounds(shape.map((point) => [point.lat, point.lng])),
-      { padding: [35, 35], maxZoom: 14, animate: false },
-    );
-  }, [map, shape]);
-  useEffect(() => {
-    if (stop) map.setView([stop.lat, stop.lng], 16, { animate: false });
-  }, [map, stop]);
-  useEffect(() => {
-    const observer = new ResizeObserver(() => map.invalidateSize());
-    observer.observe(map.getContainer());
-    return () => observer.disconnect();
-  }, [map]);
-  return null;
-}
-
 export default function OfficialRoutes() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [selectedId, setSelectedId] = useState(1);
@@ -87,7 +61,6 @@ export default function OfficialRoutes() {
   const [selectedSequence, setSelectedSequence] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [tileError, setTileError] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -133,6 +106,37 @@ export default function OfficialRoutes() {
     route?.directions.find((d) => d.id === directionId) || route?.directions[0];
   const stop =
     direction?.stops.find((stop) => stop.sequence === selectedSequence) || null;
+  const mapLines = useMemo<MapLine[]>(
+    () =>
+      direction
+        ? [
+            {
+              id: String(direction.id),
+              path: direction.shape,
+              color: "#087f81",
+            },
+          ]
+        : [],
+    [direction],
+  );
+  const mapStops = useMemo<MapStop[]>(
+    () =>
+      direction
+        ? direction.stops.map((item) => ({
+            ...item,
+            id: String(item.sequence),
+            title: `${item.sequence}. ${item.name}`,
+            details: [
+              `AYNA dayanacaq kodu: ${item.source_code}`,
+              "Rəsmi marşrut dayanacağı",
+            ],
+            color: "#087f81",
+            size: 5,
+            selectable: true,
+          }))
+        : [],
+    [direction],
+  );
   return (
     <>
       <div className="page-title">
@@ -264,53 +268,17 @@ export default function OfficialRoutes() {
                 </span>
                 <small>Hərəkət sxemi · statik məlumat</small>
               </div>
-              <MapContainer
-                center={[40.39, 49.85]}
-                zoom={12}
-                preferCanvas
-                className="official-leaflet"
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  eventHandlers={{ tileerror: () => setTileError(true) }}
+              <GoogleMapCanvas className="official-google-map">
+                <GoogleMapViewport points={direction.shape} focus={stop} />
+                <GoogleRouteLines lines={mapLines} />
+                <GoogleStopLayer
+                  stops={mapStops}
+                  selectedId={
+                    selectedSequence ? String(selectedSequence) : null
+                  }
+                  onSelect={(id) => setSelectedSequence(Number(id))}
                 />
-                <MapFocus shape={direction.shape} stop={stop} />
-                <Polyline
-                  positions={direction.shape.map((point) => [
-                    point.lat,
-                    point.lng,
-                  ])}
-                  pathOptions={{ color: "#087f81", weight: 5, opacity: 0.8 }}
-                />
-                {direction.stops.map((item) => (
-                  <CircleMarker
-                    key={item.sequence}
-                    center={[item.lat, item.lng]}
-                    radius={selectedSequence === item.sequence ? 9 : 5}
-                    pathOptions={{
-                      color:
-                        selectedSequence === item.sequence
-                          ? "#8361cd"
-                          : "#087f81",
-                      fillColor: "#fff",
-                      fillOpacity: 1,
-                      weight: 2,
-                    }}
-                    eventHandlers={{
-                      click: () => setSelectedSequence(item.sequence),
-                    }}
-                  >
-                    <Popup>
-                      <strong>
-                        {item.sequence}. {item.name}
-                      </strong>
-                      <p>AYNA dayanacaq kodu: {item.source_code}</p>
-                    </Popup>
-                  </CircleMarker>
-                ))}
-              </MapContainer>
-              {tileError && <div className="tile-error" role="status">Xəritə fonu yüklənmədi. Rəsmi yol xətti və dayanacaqlar göstərilir.</div>}
+              </GoogleMapCanvas>
               <div className="map-legend">
                 <span>
                   <i className="legend-stop" />

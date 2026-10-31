@@ -23,7 +23,7 @@ The real daily ride chart is deliberately separate from the synthetic density ch
 
 ## Start with Docker
 
-Prerequisites: Docker Engine/Desktop with Compose v2, running in Linux-container mode. Internet access is needed for initial dependency/image downloads and OpenStreetMap tiles.
+Prerequisites: Docker Engine/Desktop with Compose v2, running in Linux-container mode. Internet access is needed for initial dependency/image downloads and Google Maps. Create `.env` from the example only when it does not already exist, then set `VITE_GOOGLE_MAPS_API_KEY` before building the frontend.
 
 ```sh
 cp .env.example .env
@@ -68,7 +68,7 @@ flowchart LR
   F --> O
 ```
 
-Backend: Python 3.12 container, FastAPI, Pydantic v2 and SQLAlchemy 2.0. Frontend: React, TypeScript, Vite, React Leaflet and Recharts. One backend process owns the scheduler and WebSocket hub; run **one worker**. No Redis, PostGIS, authentication or production hosting is required for this local demo.
+Backend: Python 3.12 container, FastAPI, Pydantic v2 and SQLAlchemy 2.0. Frontend: React, TypeScript, Vite, Google Maps JavaScript API through `@vis.gl/react-google-maps`, and Recharts. Google Maps replaces the original Leaflet/OpenStreetMap renderer at the user's request. One backend process owns the scheduler and WebSocket hub; run **one worker**. No Redis, PostGIS, authentication or production hosting is required for this local demo.
 
 Tables follow `AGENTS.md`: routes, stops, ordered route stops, buses, positions, crowd reports, density snapshots and alerts, plus source import records and route/day ridership. Additional route fields persist surge controls and alert streaks. Positions are indexed by `(bus_id, ts)`; snapshots by `(route_id, ts)`. A partial unique index enforces one open alert per route. Schema and seed initialization are idempotent; the existing stop-table upgrade is additive. This hackathon version does not include a general migration framework.
 
@@ -99,6 +99,8 @@ The forecast is a small **statistical seasonal baseline**, independent of the LL
 | `LOAD_OPEN_DATA` | `true` | Import bundled official snapshots and attach real stops to demo paths |
 | `AYNA_API_URL` | `https://map-api.ayna.gov.az` | Public official route metadata upstream |
 | `AYNA_CACHE_HOURS` | `24` | Persistent metadata cache lifetime; stale fallback is labeled |
+| `VITE_GOOGLE_MAPS_API_KEY` | empty | Google Maps browser key; set in the ignored root `.env` |
+| `VITE_GOOGLE_MAP_ID` | `DEMO_MAP_ID` | Map ID for advanced vehicle markers; use an owned map ID for production |
 | `DENSITY_THRESHOLD` | `70` | High-density alert threshold |
 | `ALERT_WINDOW_MINUTES` | `10` | Normal alert window; demo mode overrides to 1 |
 | `ALERT_HYSTERESIS` | `10` | Recovery threshold offset |
@@ -109,7 +111,15 @@ The forecast is a small **statistical seasonal baseline**, independent of the LL
 | `LLM_MODEL` | `claude-haiku-4-5` | Configurable provider model |
 | `API_URL` | `http://localhost:8000` | Simulator target; Compose uses `http://backend:8000` |
 
-`/health` reports the effective alert window. Store timestamps in UTC and display times in `Asia/Baku`. Vite development uses the same-origin proxy, so no frontend API key or build-time service URL is needed. Server-assigned ingestion timestamps avoid accepting future or forged historical observation times.
+`/health` reports the effective alert window. Store timestamps in UTC and display times in `Asia/Baku`. Vite development proxies backend requests through the same origin; the Google Maps browser key is configured separately. Server-assigned ingestion timestamps avoid accepting future or forged historical observation times.
+
+### Google Maps setup
+
+Set `VITE_GOOGLE_MAPS_API_KEY=your-browser-key` in the root `.env`, which is ignored by Git. Vite reads that root file in local development; Docker Compose passes the same value to the frontend build. Restart Vite after changing it, or rebuild the frontend image for Docker. The supplied key is configured only in the local ignored file, never in application source or `.env.example`.
+
+Enable **Maps JavaScript API** and billing for the key's Google Cloud project. This is a browser key and is necessarily included in the served JavaScript; use Google's [website/referrer restrictions](https://developers.google.com/maps/api-security-best-practices), including `http://localhost:5173/*`, `http://127.0.0.1:5173/*` and the actual deployment origin as appropriate. Keep server-side secrets such as `LLM_API_KEY` outside the `VITE_` namespace.
+
+All three map views use Google Maps: passenger, operator and official AYNA routes. Native route polylines and a data layer render paths and stop catalogs; advanced markers update simulator buses. The map instance is reused across navigation. Missing keys, script/network loading failure and authentication rejection show a map-local error while the rest of the app remains available. The Google basemap displays the existing AYNA/OpenData information and simulated movement; data provenance and GPS availability remain labeled.
 
 ## Demo and API
 
@@ -204,6 +214,6 @@ Use `npm.cmd` on Windows when PowerShell blocks `npm.ps1`. Unix equivalents use 
 
 All 48 backend tests, the production frontend build and real Edge desktop/mobile browser checks passed. The simulator-to-REST-to-WebSocket thin slice was checked against a running local backend. A live surge created an alert after 65.7 seconds and resolved it after 126.1 seconds of recovery. Browser checks covered moving markers, live alert/recommendation display, reports, cross-route stop selection, WebSocket reconnection, API failure/recovery, and map tile failures. Compose YAML and PostgreSQL DDL were checked statically. See `PLAN.md` for the final verification record.
 
-Docker is not installed on the implementation host, so a PostgreSQL-container clean start and the complete Compose stack could not be executed here. Compose configuration is supplied, but this remains a required environment-level check on a Docker-enabled machine. No real LLM key was used; provider success and failure are tested using HTTP mocks. External map tiles and web fonts need connectivity; the UI retains live overlays and shows a tile-error message if map loading fails.
+Docker is not installed on the implementation host, so a PostgreSQL-container clean start and the complete Compose stack could not be executed here. Compose configuration is supplied, but this remains a required environment-level check on a Docker-enabled machine. No real LLM key was used; provider success and failure are tested using HTTP mocks. Google Maps and web fonts need connectivity; map-local configuration/loading/authentication errors are shown without hiding the rest of the interface. Google Maps was verified in a real browser using the supplied local browser key.
 
 This is an unauthenticated local demo. Do not expose the ingestion, operator, or demo controls publicly. Authentication, rate limiting, schema migrations, retention policies and multi-worker event distribution are outside this hackathon version.

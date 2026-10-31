@@ -1,5 +1,7 @@
 # Real transit data: verified sources and boundaries
 
+Map rendering now uses the Google Maps JavaScript API, configured by a browser key in the ignored root `.env`. AYNA/OpenData still supply route/stop metadata and historical ride counts, and the existing simulator supplies moving demo vehicles. Google Maps rendering does not change those source classifications.
+
 Checked on 2026-10-31. The public endpoints below were tested with anonymous, read-only requests. No account credentials, extracted mobile-app tokens, or private operator systems were used.
 
 ## Integrated: official AYNA route information

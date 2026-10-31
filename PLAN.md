@@ -68,3 +68,10 @@
 - Official source returned 209 routes; route 62 returned 2 directions / 63 stop entries.
 - Old BakuBus GPS endpoint returned 404; no unverified GPS feed was enabled.
 - Verification and source boundaries: docs/REAL_DATA_SOURCES.md; app stays running.
+
+## Google Maps (user-requested stack change)
+- [x] Replace Leaflet/OSM with Google Maps on passenger, operator and official views.
+- [x] Put the supplied browser key in ignored .env; wire Vite and Docker build args.
+- [x] Real Google map/browser checks pass: moving buses, search, directions, fullscreen/mobile.
+- [x] Document browser key setup; production build passes; key excluded from tracked files.
+- [x] Commit implementation and keep the local application running.
