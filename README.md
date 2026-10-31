@@ -169,4 +169,3 @@ npm run build
 ```
 
 Coverage includes ETA, walking/bus/walking matching, GPS freshness, density, alert timing/recovery, validation, source imports/cache, provider failure and walking-limit handling. Build validates TypeScript and bundles the frontend. Docker startup must be checked on a host with Docker available.
-
