@@ -1,5 +1,9 @@
 # IDDA · Smart Transit & Crowdsourcing Engine
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/orucexe/bakuport)
+
+Production frontend: https://idda-transit.vercel.app. The backend deployment uses the root `render.yaml` Blueprint; after Render is ready, set its HTTPS URL as Vercel's `VITE_BACKEND_URL` and redeploy the frontend. See [deployment instructions](docs/DEPLOYMENT.md).
+
 A runnable hackathon demo for Baku public transport: simulated GPS, passenger crowd reports, live arrivals, route density, operator alerts, recommendations and forecasts.
 
 The app now bundles **3,600 real stops** and **15,686 daily ride observations for 65 BakuBus route codes** from OpenData.az. Recorded daily rides cover **2026-01-01 through 2026-09-30**. The three moving demo lines (`DEMO-A/B/C`), vehicle plates, live GPS, density samples and density forecasts remain simulated. Each demo line uses ten nearby real stops and three simulated buses. These lines are not official BakuBus route paths. The interface is in Azerbaijani.

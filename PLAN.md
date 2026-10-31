@@ -78,4 +78,5 @@
 ## Vercel / Render deployment
 - [x] Vercel project/environment, SPA routes, backend URL/WS wiring; frontend production published.
 - [x] Render PostgreSQL blueprint/CORS/driver setup, deployment docs and two config tests.
-- [ ] Publish verified application to github.com/orucexe/bakuport; Render awaits account authorization.
+- [x] Published github.com/orucexe/bakuport (master); clean checkout: 65 backend tests and frontend checks pass.
+- [ ] Render account authorization/Blueprint launch pending; connect its final URL to Vercel afterward.
