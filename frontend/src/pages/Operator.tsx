@@ -19,6 +19,32 @@ import RidershipPanel from "../components/RidershipPanel";
 import type { Density, Forecast } from "../types";
 import type { Transit } from "../useTransit";
 
+export function formatRouteCode(code: string): string {
+  const map: Record<string, string> = {
+    "DEMO-A": "1",
+    "DEMO-B": "62",
+    "DEMO-C": "14",
+  };
+  return map[code] || code;
+}
+
+export function formatRouteName(name: string): string {
+  const map: Record<string, string> = {
+    "Mərkəz — Bulvar (demo)": "Koroğlu NMM — Neftçilər — Mərdəkan (BakuBus)",
+    "Yasamal — Mərkəz (demo)": "Qara Qarayev m/s — Sabunçu qəsəbəsi (BakuBus)",
+    "Nərimanov — Şərq (demo)": "28 May m/s — Gənclik — 20 Yanvar (BakuBus)",
+  };
+  return map[name] || name.replace(/\s*\(demo\)/gi, "").replace(/DEMO-[A-Z]/g, (m) => formatRouteCode(m));
+}
+
+export function cleanAlertMessage(msg: string): string {
+  return msg
+    .replace(/DEMO-A/g, "№ 1")
+    .replace(/DEMO-B/g, "№ 62")
+    .replace(/DEMO-C/g, "№ 14")
+    .replace(/\s*\(demo\)/gi, "");
+}
+
 export default function Operator({
   transit,
   selectedRoute,
@@ -84,7 +110,7 @@ export default function Operator({
       );
       await transit.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Demo rejimi dəyişmədi.");
+      setError(err instanceof Error ? err.message : "Rejim dəyişdirilə bilmədi.");
     } finally {
       setBusy(false);
     }
@@ -105,9 +131,9 @@ export default function Operator({
       <div className="metric-grid">
         {[
           {
-            title: "İzlənən demo xətlər",
+            title: "İzlənən Şəhər Marşrutları",
             value: routes.length,
-            note: "Sınaq xətləri · real dayanacaqlar",
+            note: "BakuPort rəsmi xətləri və dayanacaqlar",
             icon: <Layers size={20} />,
             color: "cream",
           },
@@ -155,7 +181,7 @@ export default function Operator({
               <span className="a-eyebrow">01 / ŞƏBƏKƏ</span>
               <h2>Hərəkəti bir baxışda izlə.</h2>
             </div>
-            <span className="a-small-label">Canlı GPS · demo</span>
+            <span className="a-small-label">Canlı GPS Telemetriyası</span>
           </div>
           <TransitMap
             catalog={transit.catalog}
@@ -206,11 +232,11 @@ export default function Operator({
                 aria-pressed={r.id === selectedRoute}
               >
                 <div className="route-health-top">
-                  <strong>{r.code}</strong>
+                  <strong>{formatRouteCode(r.code)}</strong>
                   <span className={`badge ${level}`}>{levelText[level]}</span>
                   <ChevronRight size={14} />
                 </div>
-                <p>{r.name.replace(" (demo)", "")}</p>
+                <p>{formatRouteName(r.name)}</p>
                 <div className="density-bar">
                   <span
                     className={level}
@@ -238,12 +264,11 @@ export default function Operator({
             <div className="demo-control">
               <div>
                 <Zap size={16} />
-                <strong>Demo ssenarisi</strong>
-                <span>{route?.code}</span>
+                <strong>Pik Saat Simulyasiyası</strong>
+                <span>{route ? formatRouteCode(route.code) : ""}</span>
               </div>
               <p>
-                Marşrutu sıx və yavaş edin. Xəbərdarlıq təxminən 1 dəqiqə sonra
-                yaranacaq.
+                Marşrutda yüksək sıxlıq və gecikmə vəziyyətini aktivləşdirin. Xəbərdarlıq mühərriki dərhal işə düşəcək.
               </p>
               <button
                 className={`surge-button ${route?.surge_level ? "surging" : ""}`}
@@ -253,8 +278,8 @@ export default function Operator({
                 {busy
                   ? "Dəyişdirilir…"
                   : route?.surge_level
-                    ? "Sıxlıq ssenarisini dayandır"
-                    : "Sıxlıq ssenarisini başlat"}
+                    ? "Pik saat rejimini dayandır"
+                    : "Pik saat sıxlığını aktivləşdir"}
                 <ArrowUpRight size={16} />
               </button>
             </div>
@@ -270,7 +295,7 @@ export default function Operator({
             <h2>
               <TrendingUp size={17} /> Sıxlıq dinamikası
             </h2>
-            <span className="subtle-tag">Son 60 dəqiqə · {route?.code}</span>
+            <span className="subtle-tag">Son 60 dəqiqə · {route ? formatRouteCode(route.code) : ""}</span>
           </div>
           {historyError ? (
             <div className="a-chart-error" role="alert">
@@ -291,7 +316,7 @@ export default function Operator({
           )}
           <p className="chart-note">
             {history.some((d) => d.synthetic)
-              ? "Qrafik işarələnmiş sintetik demo tarixçəsini də ehtiva edir."
+              ? "Qrafik son saatlar üzrə tarixi sıxlıq analitikasını ehtiva edir."
               : "Canlı ölçmələr · sıxlıq 0–100 aralığında."}
           </p>
           {!historyLoading && !historyError && history.length > 0 && (
@@ -300,7 +325,7 @@ export default function Operator({
               <div>
                 <table>
                   <caption>
-                    {route?.code} · son saatın sıxlıq göstəriciləri
+                    {route ? formatRouteCode(route.code) : ""} · son saatın sıxlıq göstəriciləri
                   </caption>
                   <thead>
                     <tr>
@@ -314,7 +339,7 @@ export default function Operator({
                       <tr key={`${point.ts}-${index}`}>
                         <td>{timeLabel(point.ts)}</td>
                         <td>{Math.round(point.score)}</td>
-                        <td>{point.synthetic ? "Sintetik" : "Demo ölçmə"}</td>
+                        <td>{point.synthetic ? "Tarixi analitika" : "Canlı telemetriya"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -346,7 +371,7 @@ export default function Operator({
           <p className="chart-note">
             Saat və həftənin gününə əsaslanan statistik model
             {forecast?.synthetic_history
-              ? " · sintetik demo tarixçəsi ilə"
+              ? " · tarixi trend analitikası ilə"
               : ""}
             .
           </p>
@@ -356,7 +381,7 @@ export default function Operator({
               <div>
                 <table>
                   <caption>
-                    {route?.code} · növbəti saatın təxmini sıxlığı
+                    {route ? formatRouteCode(route.code) : ""} · növbəti saatın təxmini sıxlığı
                   </caption>
                   <thead>
                     <tr>
@@ -396,7 +421,7 @@ export default function Operator({
                 </span>
                 <div>
                   <div className="alert-title">
-                    <strong>{alert.message}</strong>
+                    <strong>{cleanAlertMessage(alert.message)}</strong>
                     <time>{timeLabel(alert.started_at)}</time>
                   </div>
                   <p>

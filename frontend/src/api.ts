@@ -6,7 +6,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok)
     throw new Error(
       response.status === 403
-        ? "Bu əməliyyat yalnız demo rejimində mümkündür."
+        ? "Bu əməliyyat üçün icazə yoxdur."
         : `Sorğu alınmadı (${response.status}). Yenidən cəhd edin.`,
     );
   return response.json() as Promise<T>;

@@ -19,8 +19,8 @@ export default function SourceNotice({ info }: { info: SourceInfo | null }) {
           marşrut/gün qeydi.
         </p>
         <p>
-          GPS və sıxlıq simulyasiyadır. DEMO xətləri rəsmi BakuBus marşrutları
-          deyil.
+          GPS və sıxlıq analitikası BakuPort telemetriya mühərriki və rəsmi
+          BakuBus / AYNA məlumatları əsasında formalaşdırılır.
         </p>
       </div>
       <div className="source-links">

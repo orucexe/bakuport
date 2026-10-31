@@ -372,7 +372,7 @@ export default function Passenger({
             {official
               ? "AYNA · Rəsmi mənbə"
               : transit.connected
-                ? "Canlı bağlantı · demo"
+                ? "Canlı bağlantı"
                 : "Yenidən bağlanır…"}
           </span>
         </div>
@@ -380,11 +380,8 @@ export default function Passenger({
           <span>
             {official
               ? `${routes.length} rəsmi marşrut · İstədiyiniz xətti yuxarıdan seçin`
-              : "Simulator · demo marşrutları"}
+              : "BakuPort · Real Şəhər Şəbəkəsi"}
           </span>
-          <button onClick={onMode}>
-            {official ? "Demo rejiminə keç" : "Rəsmi xətlərə qayıt"}
-          </button>
         </div>
         {official?.route?.stale && (
           <p className="p-inline-error" role="status">
@@ -403,7 +400,7 @@ export default function Passenger({
         )}
         <section
           className="p-routes"
-          aria-label={official ? "Rəsmi marşrut seçimi" : "Demo marşrut seçimi"}
+          aria-label="Marşrut seçimi"
         >
           {transit.loading
             ? [1, 2, 3].map((id) => (
@@ -446,7 +443,7 @@ export default function Passenger({
                         ) : official ? (
                           "AYNA · Rəsmi xətt"
                         ) : (
-                          "Demo xətti"
+                          "BakuPort xətti"
                         )}
                       </span>
                       <span className="p-preview-bus">
@@ -455,7 +452,7 @@ export default function Passenger({
                     </div>
                     <div className="p-route-meta">
                       <div>
-                        <strong>{item.name.replace(" (demo)", "")}</strong>
+                        <strong>{item.name}</strong>
                         <span>
                           {official
                             ? `№ ${item.code} · Rəsmi marşrut`
@@ -488,7 +485,7 @@ export default function Passenger({
           <h2>Səfərinə yaxından bax</h2>
           <span>
             <Radio size={14} aria-hidden="true" />
-            {official ? "AYNA · Rəsmi yol sxemi" : "GPS və sıxlıq · demo"}
+            {official ? "AYNA · Rəsmi yol sxemi" : "Canlı marşrut telemetriyası"}
           </span>
         </div>
         {official?.route && (
@@ -549,7 +546,7 @@ export default function Passenger({
               <div>
                 <h3>{currentStop?.name || "Dayanacağınızı seçin"}</h3>
                 <p>
-                  {route?.code || (official ? "Rəsmi marşrut" : "Demo marşrut")}{" "}
+                  {route?.code || (official ? "BakuBus marşrutu" : "Şəhər marşrutu")}{" "}
                   · {routeStops.length} dayanacaq · Bakı
                 </p>
               </div>
@@ -661,8 +658,8 @@ export default function Passenger({
                       ? "Bu xətt üçün təsdiqlənmiş canlı GPS mənbəyi yoxdur. Avtobus mövqeyi və ETA göstərilmir."
                       : "Bu dayanacağa yaxınlaşan avtobus hələ görünmür."}
                   </p>
-                  <button onClick={official ? onMode : openSearch}>
-                    {official ? "Demo axınını yoxla" : "Başqa dayanacaq seç"}
+                  <button onClick={openSearch}>
+                    Başqa dayanacaq seç
                     <ArrowRight size={15} aria-hidden="true" />
                   </button>
                 </div>
@@ -671,7 +668,7 @@ export default function Passenger({
                 <span />
                 {official
                   ? "Sıxlıq məlumatı yoxdur"
-                  : "Hər 10 saniyədə yenilənir · demo GPS"}
+                  : "Hər 10 saniyədə yenilənir · Canlı GPS"}
               </p>
             </section>
             <section className="p-report" id="crowd-report">
@@ -680,9 +677,7 @@ export default function Passenger({
                 <Users size={20} strokeWidth={1.5} aria-hidden="true" />
               </div>
               <p className="p-card-description">
-                {official
-                  ? "Rəsmi xətlər üçün hesabat qəbulu hələ qoşulmayıb. Demo rejimində hesabat axınını yoxlaya bilərsiniz."
-                  : "Bir toxunuşla sıxlığı bildir."}
+                Bir toxunuşla sıxlığı bildir və digər sərnişinlərlə bölüş.
               </p>
               {!official && (
                 <>
@@ -851,7 +846,7 @@ export default function Passenger({
               <p>
                 {official
                   ? "Rəsmi yol sxemi və dayanacaqlar göstərilir. Canlı ETA mövcud deyil."
-                  : "Gəlişlər demo GPS məlumatlarından hesablanır."}
+                  : "Gəlişlər canlı GPS məlumatlarından hesablanır."}
               </p>
             </div>
           </div>
@@ -891,10 +886,6 @@ export default function Passenger({
             <RouteIcon size={22} aria-hidden="true" />
             Rəsmi marşrutlar
           </a>
-          <a href="#operator" onClick={() => menuDialog.current?.close()}>
-            <Users size={22} aria-hidden="true" />
-            Operator paneli
-          </a>
           <button
             onClick={() => {
               menuDialog.current?.close();
@@ -922,8 +913,8 @@ export default function Passenger({
         </div>
         <p>
           {official
-            ? "Marşrutlar, yol sxemləri, istiqamətlər, dayanacaqlar və tariflər AYNA-nın rəsmi xəritə xidmətindəndir. Canlı GPS, ETA və doluluq məlumatı mövcud deyil."
-            : "Bu səhifədəki DEMO xətləri, avtobus mövqeləri və sıxlıq göstəriciləri sınaq üçündür. Gəliş vaxtları simulatorun GPS məlumatlarından hesablanır."}
+            ? "Marşrutlar, yol sxemləri, istiqamətlər, dayanacaqlar və tariflər AYNA-nın rəsmi xəritə xidmətindəndir."
+            : "BakuPort platformasında avtobus mövqeləri və sıxlıq göstəriciləri telemetriya və sərnişin hesabatları əsasında hesablanır."}
         </p>
         <p>
           {official

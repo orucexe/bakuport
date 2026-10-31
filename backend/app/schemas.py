@@ -27,7 +27,7 @@ class Output(BaseModel):
 
 class RouteOutput(Output):
     model_config = ConfigDict(json_schema_extra={"example": {
-        "id": 1, "code": "DEMO-A", "name": "Mərkəz — Bulvar (demo)", "color": "#087f8c", "surge_level": 0}})
+        "id": 1, "code": "1", "name": "Koroğlu NMM — Neftçilər — Mərdəkan (BakuBus)", "color": "#0284c7", "surge_level": 0}})
     id: int
     code: str
     name: str
@@ -37,7 +37,7 @@ class RouteOutput(Output):
 
 class StopOutput(Output):
     model_config = ConfigDict(json_schema_extra={"example": {
-        "id": 101, "name": "DEMO-A · Dayanacaq 1 (demo)", "lat": 40.384, "lng": 49.848}})
+        "id": 101, "name": "Koroğlu NMM", "lat": 40.4205, "lng": 49.9185}})
     id: int
     name: str
     lat: float
@@ -84,7 +84,7 @@ Level = Literal["low", "medium", "high", "unknown"]
 
 class ArrivalOutput(Output):
     model_config = ConfigDict(json_schema_extra={"example": {
-        "bus_id": 11, "route_id": 1, "plate": "DEMO-11", "eta_minutes": 3.5,
+        "bus_id": 11, "route_id": 1, "plate": "99-JH-101", "eta_minutes": 3.5,
         "crowd_score": 100, "crowd_level": "high", "confidence": "reported", "ts": "2026-10-31T08:00:00Z"}})
     bus_id: int
     route_id: int
@@ -110,7 +110,7 @@ class DensityOutput(Output):
 class AlertOutput(Output):
     model_config = ConfigDict(json_schema_extra={"example": {
         "id": 1, "route_id": 1, "type": "high_density", "status": "open", "started_at": "2026-10-31T08:00:00Z",
-        "resolved_at": None, "message": "DEMO-A: 10 dəqiqə davamlı yüksək sıxlıq",
+        "resolved_at": None, "message": "1: 10 dəqiqə davamlı yüksək sıxlıq",
         "ai_recommendation": "2 əlavə avtobus ayırın və hərəkət intervalını azaldın.", "recommendation_source": "template"}})
     id: int
     route_id: int

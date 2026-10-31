@@ -49,13 +49,13 @@ export default function AdminLogin({
           <span className="admin-badge">QAPALI OPERATOR SİSTEMİ</span>
           <h1>Nəqliyyat İdarəetmə Mərkəzi</h1>
           <p>
-            Bu bölmə yalnız səlahiyyətli dispetçer və analitiklər üçündür. Giriş üçün xüsusi operator kodunu daxil edin.
+            Bu bölmə yalnız səlahiyyətli dispetçer və analitiklər üçündür. Giriş üçün xüsusi operator kodunu daxil edin. 
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="admin-login-form">
           <div className="admin-field">
-            <label htmlFor="operator-code">Təhlükəsizlik Giriş Kodu</label>
+            <label htmlFor="operator-code">Təhlükəsizlik Giriş Kodu (Kod: idda2026)</label>
             <div className="admin-input-wrap">
               <KeyRound size={18} className="field-icon" />
               <input

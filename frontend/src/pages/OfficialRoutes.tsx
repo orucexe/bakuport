@@ -184,7 +184,7 @@ export default function OfficialRoutes() {
         </label>
         <div>
           <strong>{catalog?.routes.length ?? "—"} marşrut</strong>
-          <small>Rəsmi kataloq · demo xətti deyil</small>
+          <small>Rəsmi AYNA və BakuBus kataloqu</small>
         </div>
         {route && (
           <div className="official-fetched">

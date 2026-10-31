@@ -28,9 +28,9 @@ def test_crowd_route_membership_and_unknown_ids(client):
 
 
 def test_route_code_reports_cannot_pollute_unrelated_demo_route(client):
-    assert client.post('/crowd-reports', json={'route_code':'62','level':5}).status_code == 422
+    assert client.post('/crowd-reports', json={'route_code':'999','level':5}).status_code == 422
     assert client.post('/crowd-reports', json={'level':5}).status_code == 422
-    result=client.post('/crowd-reports', json={'route_code':'DEMO-B','level':3})
+    result=client.post('/crowd-reports', json={'route_code':'62','level':3})
     assert result.status_code == 201 and result.json()['route_id']==2
 
 

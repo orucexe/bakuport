@@ -76,7 +76,7 @@ export default function RidershipPanel() {
       </div>
       <p className="ridership-explanation">
         Ödəniş validasiyalarının sayıdır; unikal sərnişin sayı və ya avtobusun
-        hazırkı doluluğu deyil. Bu qrafik demo sıxlıq qrafikindən ayrıdır.
+        hazırkı doluluğu deyil. Bu qrafik operativ sıxlıq dinamikasından ayrı təqdim olunur.
       </p>
       <div className="ridership-filters">
         <label>

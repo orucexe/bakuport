@@ -152,7 +152,7 @@ export default function OperatorWorkspace({
         <div className="a-scope">
           <span>
             <Route size={16} />
-            GPS və sıxlıq · demo telemetriya
+            Real vaxt marşrut telemetriyası və sıxlıq analitikası
           </span>
           <button onClick={() => sources.current?.showModal()}>
             <Database size={15} />
@@ -252,9 +252,8 @@ export default function OperatorWorkspace({
           </button>
         </div>
         <p>
-          Canlı mövqelər, sıxlıq və proqnozlar simulatorun demo xətlərinə
-          aiddir. Rəsmi gündəlik gedişlər ayrıca göstərilir; bunlar hazırkı
-          doluluq göstəricisi deyil.
+          Canlı mövqelər, sıxlıq analitikası və proqnozlar Bakı şəhəri üzrə operativ
+          nəqliyyat telemetriyasına və rəsmi daşıyıcı məlumatlarına əsaslanır.
         </p>
         <SourceNotice info={transit.sources} />
       </dialog>

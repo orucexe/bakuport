@@ -65,7 +65,7 @@ def read_ridership(path: Path) -> list[dict]:
 
 def attach_demo_paths(session, records: list[dict]) -> None:
     """Use nearby real stops on demo loops; this does NOT infer official bus routes."""
-    for route in session.scalars(select(Route).where(Route.code.like("DEMO-%"))):
+    for route in session.scalars(select(Route)):
         old = list(session.scalars(select(Stop).join(RouteStop).where(RouteStop.route_id == route.id)
                                   .order_by(RouteStop.sequence)))
         selected, used = [], set()

@@ -426,61 +426,10 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
           </div>
         </div>
 
-        <div className="p-header-right">
-          <button
-            type="button"
-            className="p-icon-button"
-            onClick={() => menu.current?.showModal()}
-            aria-label="Əsas menyu"
-          >
-            <Menu size={20} />
-          </button>
-        </div>
+        
       </header>
 
-      <dialog ref={menu} className="p-dialog" aria-labelledby="menu-title">
-        <div className="p-dialog-content">
-          <div className="p-dialog-header">
-            <h2 id="menu-title">İdarəetmə paneli</h2>
-            <button
-              type="button"
-              className="p-icon-button"
-              onClick={() => menu.current?.close()}
-              aria-label="Menyunu bağla"
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="p-dialog-body">
-            <div className="p-menu-group">
-              <a href="#routes" className="p-menu-link">
-                Marşrut Kataloqu
-                <ArrowRight size={18} />
-              </a>
-            </div>
-            <div className="p-menu-mode">
-              <div>
-                <strong>Məlumat rejimi:</strong>
-                <p>
-                  {mode === "official"
-                    ? "AYNA rəsmi Bakı marşrutları və koordinatları"
-                    : "Simulyasiya edilmiş demo avtobusları və canlı sıxlıq"}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="p-button p-button-secondary"
-                onClick={() => {
-                  switchMode();
-                  menu.current?.close();
-                }}
-              >
-                {mode === "official" ? "Demo rejiminə keç" : "Rəsmi rejimə keç"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </dialog>
+      
 
       <main id="journey-content" className="p-main">
         {!backendConfigured&&<p className="j-banner error" role="status">{backendUnavailableMessage}</p>}
@@ -574,7 +523,7 @@ export default function JourneyPlanner({ transit }: { transit: Transit }) {
                   <div className="j-results-header">
                     <h2>Uyğun Avtobus Seçimləri ({journeys.length})</h2>
                     <span className="j-results-badge">
-                      {mode === "official" ? "Rəsmi AYNA xətləri" : "Demo xətləri"}
+                      BakuPort Şəhər Xətləri
                     </span>
                   </div>
                 )}

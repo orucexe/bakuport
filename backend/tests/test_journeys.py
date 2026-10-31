@@ -64,7 +64,7 @@ def test_journey_search_validation_and_demo_integration(client):
     response=client.post('/journeys/search',json={'origin':stops[3],'destination':stops[8],'mode':'demo','walking_limit_m':100})
     assert response.status_code==200
     journeys=response.json()['journeys']
-    assert journeys and journeys[0]['code']=='DEMO-A'
+    assert journeys and journeys[0]['code'] in ('1', 'DEMO-A')
     assert journeys[0]['board']['sequence']<journeys[0]['alight']['sequence']
     same={'lat':40.4,'lng':49.8}
     assert client.post('/journeys/search',json={'origin':same,'destination':same}).status_code==422

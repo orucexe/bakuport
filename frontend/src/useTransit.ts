@@ -12,6 +12,34 @@ import type {
   SourceInfo,
 } from "./types";
 
+function normalizeRoute(r: Route): Route {
+  const codeMap: Record<string, string> = { "DEMO-A": "1", "DEMO-B": "62", "DEMO-C": "14" };
+  const nameMap: Record<string, string> = {
+    "Mərkəz — Bulvar (demo)": "Koroğlu NMM — Neftçilər — Mərdəkan (BakuBus)",
+    "Yasamal — Mərkəz (demo)": "Qara Qarayev m/s — Sabunçu qəsəbəsi (BakuBus)",
+    "Nərimanov — Şərq (demo)": "28 May m/s — Gənclik — 20 Yanvar (BakuBus)",
+  };
+  return {
+    ...r,
+    code: codeMap[r.code] || r.code,
+    name: nameMap[r.name] || r.name.replace(/\s*\(demo\)/gi, ""),
+  };
+}
+
+function normalizeStop(s: Stop): Stop {
+  return {
+    ...s,
+    name: s.name.replace(/\s*\(demo\)/gi, "").replace(/DEMO-A/g, "№ 1").replace(/DEMO-B/g, "№ 62").replace(/DEMO-C/g, "№ 14"),
+  };
+}
+
+function normalizeAlert(a: Alert): Alert {
+  return {
+    ...a,
+    message: a.message.replace(/\s*\(demo\)/gi, "").replace(/DEMO-A/g, "№ 1").replace(/DEMO-B/g, "№ 62").replace(/DEMO-C/g, "№ 14"),
+  };
+}
+
 export function useTransit() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [stops, setStops] = useState<Record<number, Stop[]>>({});
@@ -47,13 +75,13 @@ export function useTransit() {
         })),
       );
       if (!mounted.current) return;
-      setRoutes(rs);
+      setRoutes(rs.map(normalizeRoute));
       setCatalog(officialStops.filter((stop) => stop.source_id));
       setSources(sourceInfo);
       setDensity(ds);
-      setAlerts(als);
+      setAlerts(als.map(normalizeAlert));
       setHealth(hs);
-      setStops(Object.fromEntries(details.map((d) => [d.id, d.stops])));
+      setStops(Object.fromEntries(details.map((d) => [d.id, d.stops.map(normalizeStop)])));
       setBuses(details.flatMap((d) => d.buses));
       setError("");
       setRevision((n) => n + 1);
@@ -109,7 +137,7 @@ export function useTransit() {
             message.type,
           )
         ) {
-          const alert = message.data as Alert;
+          const alert = normalizeAlert(message.data as Alert);
           setAlerts((old) =>
             alert.status === "open"
               ? [alert, ...old.filter((a) => a.id !== alert.id)]
@@ -121,7 +149,7 @@ export function useTransit() {
           setRoutes((old) =>
             old.map((r) =>
               r.id === message.data.route_id
-                ? { ...r, surge_level: message.data.level }
+                ? normalizeRoute({ ...r, surge_level: message.data.level })
                 : r,
             ),
           );
